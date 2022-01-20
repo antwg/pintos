@@ -1,2 +1,2 @@
 # pintos-project
-Båt till master branch
+Byt till master branch
