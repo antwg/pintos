@@ -1,11 +1,17 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
+struct intr_frame;
+
 void syscall_init (void);
 
-//void halt_(void);
+// Helper functions
+void halt_call(void);
 
-//void write_call (struct intr_frame *f);
-//bool create_(int* syscall_nr);
+void create_call(struct intr_frame *f);
+
+void open_call(struct intr_frame *f);
+
+void write_call (struct intr_frame *f);
 
 #endif /* userprog/syscall.h */
