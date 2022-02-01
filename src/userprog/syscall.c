@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -34,7 +35,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_CREATE:
     {
-      //create_(syscall_nr);
+      create_call(f);
       break;
     }
     case SYS_WRITE:
@@ -42,11 +43,26 @@ syscall_handler (struct intr_frame *f UNUSED)
       write_call(f);
       break;
     }
+    case SYS_OPEN:
+    {
+      open_call(f);
+    }
   }
 }
 
 void halt_(){
   power_off();
+}
+
+void open_call(struct intr_frame *f){
+  const void *name = *(void**) (f->esp + 4);
+  f -> eax = filesys_open(name);
+}
+
+void create_call(struct intr_frame *f){
+  const void *name = *(void**) (f->esp + 4);
+  unsigned size = *(unsigned*) (f->esp + 8);
+  f -> eax = filesys_create(name, size);
 }
 
 void write_call (struct intr_frame *f){
