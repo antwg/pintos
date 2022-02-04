@@ -89,8 +89,8 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int fd_array[128];                  /*Max number of files per process*/
-    struct file* file_array[128];
+    int fd_array[128];                  /* Array of 1's and 0's, 1 meaning fd used, 0 meaning unused  */
+    struct file* file_array[128];       /* Array of file* corresponding to fd's in fd_array */
 
 
     /* Shared between thread.c and synch.c. */
@@ -130,7 +130,7 @@ void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
 int thread_get_fd(struct file* f);
-void thread_remove_fd(int pos);
+void thread_remove_fd(int fd);
 struct file* thread_get_file(int fd);
 
 int thread_get_priority (void);

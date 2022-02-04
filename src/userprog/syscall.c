@@ -50,7 +50,7 @@ void halt_call(){
 void create_call(struct intr_frame *f){
   const void *name = *(void**) (f->esp + 4);
   unsigned size = *(unsigned*) (f->esp + 8);
-  f -> eax = filesys_create(name, size); // Return bool
+  f -> eax = filesys_create(name, size); // Return true if successful, else false
 }
 
 void open_call(struct intr_frame *f){
@@ -76,7 +76,6 @@ void read_call(struct intr_frame *f){
 
   // read from console
   if (fd == 0){ 
-    printf("now we are going to listen to what you have to say");
     for (unsigned i = 0; i < size; i++){
       buffer[i] = input_getc();
     }
@@ -106,13 +105,16 @@ void write_call (struct intr_frame *f){
   // Write to console
   if (fd == 1){ 
     putbuf(buffer, size);
-    f -> eax = size; // Return size
+    f -> eax = size; 
     return;
   }
-  if (fd == 0){ // Invalid 
+
+  // Illegal argument
+  if (fd == 0){
     f -> eax = -1;
     return;
   }
+  
   // Write to file
   int written_bits = file_write(thread_get_file(fd), buffer, size);
   if(written_bits == 0){

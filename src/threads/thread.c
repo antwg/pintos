@@ -22,6 +22,9 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+/* The largest number of files a process is allowed to open */
+#define MAX_FILES_OPEN 128
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -308,28 +311,31 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
-/* Gets and sets td*/
-int thread_get_fd(struct file* f){
+/* Gets a file descriptor for a file*/
+int
+thread_get_fd(struct file* f){
   int* arr = thread_current()->fd_array;
-  for (int i = 0; i < 128; i++){
+  for (int i = 0; i < MAX_FILES_OPEN; i++){
     if (arr[i] != 1){
       arr[i] = 1;
-      thread_current()->file_array[i] = f;
-      return i + 2; // +2 to skip std_in and std_out (0,1)
+      thread_current() -> file_array[i] = f;
+      return i + 2; // +2 to skip std_in and std_out, fd = 0,1
     }
   }
   return -1;
 }
 
-void thread_remove_fd(int pos){
-  thread_current()->fd_array[pos-2] = 0; // -2 to skip std_in and std_out (0,1)
+/* Free file descriptor */
+void 
+thread_remove_fd(int fd){
+  thread_current() -> fd_array[(fd-2)] = 0; // -2 to skip std_in and std_out, fd = 0,1
 }
   
-
-struct file* thread_get_file(int fd){
-  return thread_current()->file_array[(fd-2)]; // -2 to skip std_in and std_out (0,1)
+/* Get file from file descriptor */
+struct file* 
+thread_get_file(int fd){
+  return thread_current() -> file_array[(fd-2)]; // -2 to skip std_in and std_out, fd = 0,1
 }
-
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void

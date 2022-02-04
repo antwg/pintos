@@ -1,6 +1,9 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
+/* All call funtions return void but instead use "f -> eax" to 
+   return their respective values.*/
+
 struct intr_frame;
 
 void syscall_init (void);
