@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "filesys/file.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -88,6 +89,9 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int fd_array[128];                  /*Max number of files per process*/
+    struct file* file_array[128];
+
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -124,6 +128,10 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+
+int thread_get_fd(struct file* f);
+void thread_remove_fd(int pos);
+struct file* thread_get_file(int fd);
 
 int thread_get_priority (void);
 void thread_set_priority (int);

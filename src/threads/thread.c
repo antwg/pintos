@@ -11,8 +11,10 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "filesys/file.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -305,6 +307,29 @@ thread_yield (void)
   schedule ();
   intr_set_level (old_level);
 }
+
+/* Gets and sets td*/
+int thread_get_fd(struct file* f){
+  int* arr = thread_current()->fd_array;
+  for (int i = 0; i < 128; i++){
+    if (arr[i] != 1){
+      arr[i] = 1;
+      thread_current()->file_array[i] = f;
+      return i + 2; // +2 to skip std_in and std_out (0,1)
+    }
+  }
+  return -1;
+}
+
+void thread_remove_fd(int pos){
+  thread_current()->fd_array[pos-2] = 0; // -2 to skip std_in and std_out (0,1)
+}
+  
+
+struct file* thread_get_file(int fd){
+  return thread_current()->file_array[(fd-2)]; // -2 to skip std_in and std_out (0,1)
+}
+
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void

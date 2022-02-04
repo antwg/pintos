@@ -12,6 +12,10 @@ void create_call(struct intr_frame *f);
 
 void open_call(struct intr_frame *f);
 
+void close_call(struct intr_frame *f);
+
+void read_call(struct intr_frame *f);
+
 void write_call (struct intr_frame *f);
 
 #endif /* userprog/syscall.h */

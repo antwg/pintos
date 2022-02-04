@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "filesys/filesys.h"
 #include "threads/init.h"
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -14,12 +15,9 @@ void syscall_init (void) {
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) {
-  printf ("system call!\n");
 
   int syscall_nr = * (int*) f->esp;
-
-  printf("syscall number is %d\n", syscall_nr);
-
+  
   switch(syscall_nr){
     case SYS_HALT:
       halt_call();
@@ -31,8 +29,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
       open_call(f);
       break;
     case SYS_CLOSE:
+      close_call(f);
       break;
     case SYS_READ:
+      read_call(f);
       break;
     case SYS_WRITE:
       write_call(f);
@@ -55,7 +55,47 @@ void create_call(struct intr_frame *f){
 
 void open_call(struct intr_frame *f){
   const void *name = *(void**) (f->esp + 4);
-  f -> eax = filesys_open(name); // TODO Return fd, or -1
+  struct file *opened_file = filesys_open(name);
+  if (opened_file == NULL){
+    f -> eax = -1;
+    return;
+  }
+  f -> eax = thread_get_fd(opened_file);
+}
+
+void close_call(struct intr_frame *f){
+  const int fd = *(int*) (f->esp + 4);
+  file_close(thread_get_file(fd));
+  thread_remove_fd(fd);
+}
+
+void read_call(struct intr_frame *f){
+  int fd = *(int*) (f-> esp + 4);
+  char *buffer = *(void**) (f->esp + 8);
+  unsigned size = *(unsigned*) (f->esp + 12);
+
+  // read from console
+  if (fd == 0){ 
+    printf("now we are going to listen to what you have to say");
+    for (unsigned i = 0; i < size; i++){
+      buffer[i] = input_getc();
+    }
+    f -> eax = size;
+    return;
+  }
+
+  // Illegal argument
+  if (fd == 1){
+    f -> eax = -1;
+    return;
+  }
+
+  // Read from file
+  int read_bits = (int) file_read(thread_get_file(fd), buffer, size);
+  if(read_bits == 0){
+    read_bits = -1;
+  }
+  f -> eax = read_bits;
 }
 
 void write_call (struct intr_frame *f){
@@ -69,5 +109,14 @@ void write_call (struct intr_frame *f){
     f -> eax = size; // Return size
     return;
   }
+  if (fd == 0){ // Invalid 
+    f -> eax = -1;
+    return;
+  }
   // Write to file
+  int written_bits = file_write(thread_get_file(fd), buffer, size);
+  if(written_bits == 0){
+    written_bits = -1;
+  }
+  f -> eax = written_bits;
 }
