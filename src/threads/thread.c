@@ -313,7 +313,7 @@ thread_yield (void)
   schedule ();
   intr_set_level (old_level);
 }
-
+#ifdef USERPROG
 /* Gets a file descriptor for a file*/
 int
 thread_get_fd(struct file* f){
@@ -339,6 +339,8 @@ struct file*
 thread_get_file(int fd){
   return thread_current() -> file_array[(fd-2)]; // -2 to skip std_in and std_out, fd = 0,1
 }
+
+#endif
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void

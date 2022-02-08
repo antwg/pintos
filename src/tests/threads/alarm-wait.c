@@ -50,6 +50,9 @@ static void sleeper (void *);
 static void
 test_sleep (int thread_cnt, int iterations) 
 {
+
+  printf("Start test at: %d\n", timer_ticks());
+
   struct sleep_test test;
   struct sleep_thread *threads;
   int *output, *op;
@@ -92,9 +95,13 @@ test_sleep (int thread_cnt, int iterations)
       snprintf (name, sizeof name, "thread %d", i);
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
-  
+
+  printf("Start wait at: %d\n", timer_ticks());
+
   /* Wait long enough for all the threads to finish. */
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
+
+  printf("Done waiting\n");
 
   /* Acquire the output lock in case some rogue thread is still
      running. */

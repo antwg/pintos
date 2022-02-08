@@ -108,29 +108,34 @@ timer_sleep (int64_t ticks)
   while (timer_elapsed(start) < ticks) 
     thread_yield ();
 }*/
+
+bool
+thread_comp(const struct list_elem *l, const struct list_elem *r, void * aux){
+  queue_node *l_node = list_entry(l, queue_node, elem);
+  queue_node *r_node = list_entry(r, queue_node, elem);
+  return l_node->finish < r_node->finish;
+};
+
 void
 timer_sleep (int64_t ticks) 
-{
-  // block thread
-  thread_block();
-  // creates a struct elem
-  struct process_queue node;
-  node.elem.prev = list_head;
-  node.elem.next = list_tail;
-  struct thread* thread = thread_current();
-  node.process = thread;
-  node.finish = timer_ticks() + ticks;
+{ 
+  // Create node
+  struct list_elem elem = {list_rend(&queue), list_end(&queue)};
+  struct thread* process = thread_current();
+  int64_t finish = (timer_ticks() + ticks);
+
+  queue_node node = {elem, process, finish};
   
+  // Create pointer to thread_comp
+  bool (*comp)(const struct list_elem*, const struct list_elem*, void * aux) = &thread_comp;
+
   // Insert in list
-  list_insert_ordered(&queue, &node.elem, )
+  list_insert_ordered(&queue, &node.elem, comp, NULL);
 
-  // Gammalt skit
-  int64_t start = timer_ticks ();
-
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed(start) < ticks){ 
-    thread_yield ();
-  }
+  //enum intr_level old_level = intr_disable ();
+  //TODO Semaphore runt?
+  thread_block();
+  //intr_set_level(old_level);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -160,6 +165,24 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
+
+void
+timer_sleep_check(){
+  if (list_empty(&queue)){
+    return;
+  }
+
+  struct list_elem *e = list_front(&queue);
+  queue_node *node = list_entry(e, struct queue_node, elem);
+  if (node->finish >= timer_ticks()){
+    //TODO Semaphore runt?
+    //thread_yield();
+    //enum intr_level old_level = intr_disable();
+    thread_unblock(thread_current());
+    //intr_set_level(old_level);
+  }
+}
+
 
 /* Timer interrupt handler. */
 static void
@@ -169,15 +192,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   timer_sleep_check();
   thread_tick();
 }
-
-timer_sleep_check(){
-  // Kolla om första elem klart
-  //struct list_elem *e;
-  //struct precess_queue *f = list_entry(e, struct foo, elem);
-  list_front(&queue)
-  // Om klart:
-  //    unblock
-};
 
 /* Returns true if LOOPS iterations waits for more than one timer
    tick, otherwise false. */

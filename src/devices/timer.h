@@ -3,15 +3,16 @@
 
 #include <round.h>
 #include <stdint.h>
+#include "lib/kernel/list.h"
 
 /* Number of timer interrupts per second. */
 #define TIMER_FREQ 100
 
-struct process_queue {
+typedef struct queue_node {
     struct list_elem elem;
     struct thread * process;
     int64_t finish;
-};
+} queue_node;
 
 void timer_init (void);
 void timer_calibrate (void);
@@ -25,5 +26,7 @@ void timer_usleep (int64_t microseconds);
 void timer_nsleep (int64_t nanoseconds);
 
 void timer_print_stats (void);
+
+bool thread_comp(const struct list_elem *l, const struct list_elem *r, void * aux);
 
 #endif /* devices/timer.h */

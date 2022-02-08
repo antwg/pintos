@@ -93,8 +93,10 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    #ifdef USERPROG
     int fd_array[MAX_FILES_OPEN];                  /* Array of 1's and 0's, 1 meaning fd used, 0 meaning unused  */
     struct file* file_array[MAX_FILES_OPEN];       /* Array of file* corresponding to fd's in fd_array */
+    #endif
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -132,9 +134,11 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
+#ifdef USERPROG
 int thread_get_fd(struct file* f);
 void thread_remove_fd(int fd);
 struct file* thread_get_file(int fd);
+#endif
 
 int thread_get_priority (void);
 void thread_set_priority (int);
