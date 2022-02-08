@@ -22,9 +22,6 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
-/* The largest number of files a process is allowed to open */
-#define MAX_FILES_OPEN 128
-
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -90,8 +87,8 @@ thread_init (void)
 {
   ASSERT (intr_get_level () == INTR_OFF);
 
-  lock_init (&tid_lock);
-  list_init (&ready_list);
+  lock_init(&tid_lock);
+  list_init(&ready_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -282,6 +279,12 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
+  for(int fd = 0; fd < MAX_FILES_OPEN; fd++){
+    if(thread_current()->fd_array[fd] == 1){
+      file_close(thread_get_file(fd));
+      thread_remove_fd(fd);
+    }
+  }
   process_exit ();
 #endif
 

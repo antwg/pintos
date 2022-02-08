@@ -17,6 +17,9 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+// Def queue
+struct list queue;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -35,6 +38,9 @@ static void real_time_sleep (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
+  // Create list
+  list_init(&queue);
+
   /* 8254 input frequency divided by TIMER_FREQ, rounded to
      nearest. */
   uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;
@@ -92,15 +98,39 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-/* Suspends execution for approximately TICKS timer ticks. */
+/* Suspends execution for approximately TICKS timer ticks. 
 void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
+  while (timer_elapsed(start) < ticks) 
     thread_yield ();
+}*/
+void
+timer_sleep (int64_t ticks) 
+{
+  // block thread
+  thread_block();
+  // creates a struct elem
+  struct process_queue node;
+  node.elem.prev = list_head;
+  node.elem.next = list_tail;
+  struct thread* thread = thread_current();
+  node.process = thread;
+  node.finish = timer_ticks() + ticks;
+  
+  // Insert in list
+  list_insert_ordered(&queue, &node.elem, )
+
+  // Gammalt skit
+  int64_t start = timer_ticks ();
+
+  ASSERT (intr_get_level () == INTR_ON);
+  while (timer_elapsed(start) < ticks){ 
+    thread_yield ();
+  }
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -136,8 +166,18 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
+  timer_sleep_check();
+  thread_tick();
 }
+
+timer_sleep_check(){
+  // Kolla om första elem klart
+  //struct list_elem *e;
+  //struct precess_queue *f = list_entry(e, struct foo, elem);
+  list_front(&queue)
+  // Om klart:
+  //    unblock
+};
 
 /* Returns true if LOOPS iterations waits for more than one timer
    tick, otherwise false. */

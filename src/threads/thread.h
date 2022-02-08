@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "filesys/file.h"
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -24,6 +25,9 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* The largest number of files a process is allowed to open */
+#define MAX_FILES_OPEN 128
 
 /* A kernel thread or user process.
 
@@ -89,9 +93,8 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int fd_array[128];                  /* Array of 1's and 0's, 1 meaning fd used, 0 meaning unused  */
-    struct file* file_array[128];       /* Array of file* corresponding to fd's in fd_array */
-
+    int fd_array[MAX_FILES_OPEN];                  /* Array of 1's and 0's, 1 meaning fd used, 0 meaning unused  */
+    struct file* file_array[MAX_FILES_OPEN];       /* Array of file* corresponding to fd's in fd_array */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
