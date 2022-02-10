@@ -91,8 +91,8 @@ test_sleep (int thread_cnt, int iterations)
       t->id = i;
       t->duration = (i + 1) * 10;
       t->iterations = 0;
-
-      snprintf (name, sizeof name, "thread %d", i);
+      printf("digit %d\n", thread_cnt);
+      snprintf (name, sizeof name, "thread %d", i,"\n");
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
 
@@ -102,6 +102,7 @@ test_sleep (int thread_cnt, int iterations)
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
 
   printf("Done waiting\n");
+  printf("\n");
 
   /* Acquire the output lock in case some rogue thread is still
      running. */

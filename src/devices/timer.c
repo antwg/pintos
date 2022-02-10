@@ -20,6 +20,9 @@
 // Def queue
 struct list queue;
 
+// Def semaphore
+struct semaphore semaphore;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -40,6 +43,9 @@ timer_init (void)
 {
   // Create list
   list_init(&queue);
+
+  // Init semaphore
+  sema_init(&semaphore, 1);
 
   /* 8254 input frequency divided by TIMER_FREQ, rounded to
      nearest. */
@@ -119,23 +125,32 @@ thread_comp(const struct list_elem *l, const struct list_elem *r, void * aux){
 void
 timer_sleep (int64_t ticks) 
 { 
+  //printf("Timer sleep called\n");
   // Create node
   struct list_elem elem = {list_rend(&queue), list_end(&queue)};
   struct thread* process = thread_current();
   int64_t finish = (timer_ticks() + ticks);
 
+  printf("Finish: %d, now: %d", finish, timer_ticks());
+
   queue_node node = {elem, process, finish};
-  
+
   // Create pointer to thread_comp
-  bool (*comp)(const struct list_elem*, const struct list_elem*, void * aux) = &thread_comp;
+  bool (*comp_ptr)(const struct list_elem*, const struct list_elem*, void * aux) = &thread_comp;
 
   // Insert in list
-  list_insert_ordered(&queue, &node.elem, comp, NULL);
+  list_push_back(&queue, &node.elem); // change to sort
+  //list_insert_ordered(&queue, &node.elem, comp_ptr, NULL);
 
-  //enum intr_level old_level = intr_disable ();
+  enum intr_level old_level;
+  old_level = intr_disable ();
   //TODO Semaphore runt?
+  //intr_disable ();
+  //sema_down(&semaphore);
   thread_block();
-  //intr_set_level(old_level);
+  //sema_up(&semaphore);
+
+  intr_set_level(old_level);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -174,12 +189,19 @@ timer_sleep_check(){
 
   struct list_elem *e = list_front(&queue);
   queue_node *node = list_entry(e, struct queue_node, elem);
-  if (node->finish >= timer_ticks()){
-    //TODO Semaphore runt?
-    //thread_yield();
-    //enum intr_level old_level = intr_disable();
-    thread_unblock(thread_current());
-    //intr_set_level(old_level);
+  printf("finish time (timer_sleep_check)%d ,    Time now: %d\n", node->finish, timer_ticks());
+  //printf("Thread blocked: %d, Thread == BLOCKED: %d\n", node->process->status, node->process->status == THREAD_BLOCKED);
+
+  if (node->finish <= timer_ticks() && node->process->status == THREAD_BLOCKED){
+    printf("Kom in i if satsen\n");
+
+    //printf("Thread blocked: %d, Thread == BLOCKED: %d\n", node->process->status, node->process->status == THREAD_BLOCKED);
+    enum intr_level old_level;
+    old_level = intr_disable();
+    printf("Innan unblockförsök: %d \n", node->process->status);
+    thread_unblock(node->process);
+    printf("Efter unblockförsök: %d \n", node->process->status);
+    intr_set_level(old_level);
   }
 }
 
@@ -189,7 +211,9 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  //printf("Before timer sleep check");
   timer_sleep_check();
+  //printf("After timer sleep check");
   thread_tick();
 }
 
