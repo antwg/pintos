@@ -60,6 +60,7 @@ int main(void)
 
   TITLE("TEST 1: Printing text\n");
   bytes_written = write(STDOUT_FILENO, dummyprint, strlen(dummyprint));
+  TITLE("bytes written");
   if (bytes_written < 0 || (size_t)bytes_written != strlen(dummyprint))
   {
     ERROR("Incorrect number of written bytes returned from SYS_WRITE.\n");

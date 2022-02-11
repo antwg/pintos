@@ -11,7 +11,8 @@
 typedef struct queue_node {
     struct list_elem elem;
     struct thread * process;
-    int64_t finish;
+    int64_t start;
+    int64_t ticks;
 } queue_node;
 
 void timer_init (void);
@@ -28,5 +29,6 @@ void timer_nsleep (int64_t nanoseconds);
 void timer_print_stats (void);
 
 bool thread_comp(const struct list_elem *l, const struct list_elem *r, void * aux);
+void timer_sleep_check(void);
 
 #endif /* devices/timer.h */
