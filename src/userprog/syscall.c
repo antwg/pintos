@@ -40,6 +40,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
     case SYS_EXIT:
       thread_exit();
       break;
+    case SYS_EXEC:
+      exec_call(f);
+      break; 
   }
 }
 
@@ -121,4 +124,17 @@ void write_call (struct intr_frame *f){
     written_bits = -1;
   }
   f -> eax = written_bits;
+}
+
+void exec_call(struct intr_frame *f){
+
+  const void *name = *(void**) (f->esp + 4);
+  tid_t pid = process_execute(name);
+  if(pid != TID_ERROR){
+    f -> eax = pid;
+    return;
+  }
+  printf("fungerar inte att starta tråden");
+  f -> eax = -1;
+
 }

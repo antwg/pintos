@@ -30,6 +30,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  struct parent_child p_c = {2, thread_current(), file_name};
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -47,6 +48,7 @@ process_execute (const char *file_name)
 
 /* A thread function that loads a user process and starts it
    running. */
+
 static void
 start_process (void *file_name_)
 {
@@ -65,6 +67,8 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success)
     thread_exit ();
+
+  // Unblock parent
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
