@@ -20,8 +20,8 @@ struct parent_child
 {
    int alive_count;
    struct thread* parent_thread;
-   const char * file_name_;
-
+   const char * file_name;
+   int exit_status;
 };
 
 /* Thread identifier type.

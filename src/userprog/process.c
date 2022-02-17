@@ -18,7 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-static thread_func start_process NO_RETURN;
+//static thread_func start_process(void* frame) NO_RETURN;
+static void start_process(void*) NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
@@ -30,7 +31,6 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-  struct parent_child p_c = {2, thread_current(), file_name};
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -38,9 +38,24 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  struct parent_child *p_c;// = {(int) 2, thread_current(), fn_copy, -1};
+  
+  p_c->alive_count = (int) 2;
+  p_c->exit_status = -1;
+  p_c->file_name = fn_copy;
+  p_c->parent_thread = thread_current();
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, p_c);
+
+  enum intr_level old_level;
+  old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
+  thread_block();
+  intr_set_level(old_level);
+
+  if (p_c->exit_status == -1)
+    tid = -1;
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -50,9 +65,10 @@ process_execute (const char *file_name)
    running. */
 
 static void
-start_process (void *file_name_)
+start_process (void *frame)
 {
-  char *file_name = file_name_;
+  struct parent_child *p_c = (struct parent_child*) frame;
+  char *file_name = p_c->file_name;
   struct intr_frame if_;
   bool success;
 
@@ -68,7 +84,13 @@ start_process (void *file_name_)
   if (!success)
     thread_exit ();
 
+  p_c->exit_status = 0;
+
   // Unblock parent
+  enum intr_level old_level;
+  old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
+  thread_unblock(p_c-> parent_thread);
+  intr_set_level(old_level);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
