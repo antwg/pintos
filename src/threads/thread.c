@@ -169,9 +169,6 @@ thread_create (const char *name, int priority, thread_func *function,
   struct switch_threads_frame *sf;
   tid_t tid;
 
-  //thread_current()->parent = parent_;
-  //thread_current()->parent_child = parent_child_;
-
   ASSERT (function != NULL);
 
   /* Allocate thread. */
@@ -282,6 +279,12 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
+  printf("%s: exit(%d)\n", thread_current()->name, thread_current()->status);
+  if(thread_current()->parent_child != NULL){
+    if(thread_current()->parent_child->alive_count == 1){
+      palloc_free_page ((void*) thread_current()->parent_child->file_name);
+    }
+  }
   for(int fd = 0; fd < MAX_FILES_OPEN; fd++){
     if(thread_current()->fd_array[fd] == 1){
       file_close(thread_get_file(fd));

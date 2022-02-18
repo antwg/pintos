@@ -26,6 +26,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+
+
 tid_t
 process_execute (const char *file_name)
 {
@@ -38,22 +40,18 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  struct parent_child *p_c;// = {(int) 2, thread_current(), fn_copy, -1};
-  
-  p_c->alive_count = (int) 2;
-  p_c->exit_status = -1;
-  p_c->file_name = fn_copy;
-  p_c->parent_thread = thread_current();
+  struct parent_child shared_data = {(int) 2, thread_current(), fn_copy, -1};
+  thread_current()->parent_child = &shared_data;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, p_c);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, &shared_data);
 
   enum intr_level old_level;
   old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
   thread_block();
   intr_set_level(old_level);
 
-  if (p_c->exit_status == -1)
+  if (shared_data.exit_status == -1)
     tid = -1;
 
   if (tid == TID_ERROR)
@@ -67,8 +65,10 @@ process_execute (const char *file_name)
 static void
 start_process (void *frame)
 {
-  struct parent_child *p_c = (struct parent_child*) frame;
-  char *file_name = p_c->file_name;
+  struct parent_child *shared_data = (struct parent_child*) frame;
+  char *file_name = shared_data->file_name;
+
+
   struct intr_frame if_;
   bool success;
 
@@ -84,12 +84,12 @@ start_process (void *frame)
   if (!success)
     thread_exit ();
 
-  p_c->exit_status = 0;
+  shared_data->exit_status = 0;
 
   // Unblock parent
   enum intr_level old_level;
   old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
-  thread_unblock(p_c-> parent_thread);
+  thread_unblock(shared_data-> parent_thread);
   intr_set_level(old_level);
 
   /* Start the user process by simulating a return from an
