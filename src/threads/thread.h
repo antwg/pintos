@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "filesys/file.h"
 #include "threads/synch.h"
 

@@ -1,6 +1,6 @@
 #include "userprog/process.h"
-#include <malloc.h>
 #include <debug.h>
+#include <stdlib.h>
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
@@ -43,18 +43,23 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   //----------------------------- New ----------------------------------------
-  struct parent_child shared_data = {(int) 2, thread_current(), fn_copy, -1}; // Malloc
-  thread_current()->parent_child = &shared_data;
+  struct parent_child* shared_data_ptr = (struct parent_child*) malloc(sizeof(struct parent_child*));
+  shared_data_ptr->parent_thread = thread_current();
+  shared_data_ptr->alive_count = 2;
+  shared_data_ptr->exit_status = -1;
+  shared_data_ptr->file_name = fn_copy;
+    
+  thread_current()->parent_child = shared_data_ptr;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, &shared_data);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, shared_data_ptr);
 
   enum intr_level old_level;
   old_level = intr_disable(); // Interrupts need to be disabled to unblock/block thread
   thread_block();
   intr_set_level(old_level);
 
-  if (shared_data.exit_status == -1)
+  if (shared_data_ptr->exit_status == -1)
     tid = -1;
 
   //----------------------------- End New ----------------------------------------

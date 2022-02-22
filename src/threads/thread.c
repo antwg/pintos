@@ -286,6 +286,7 @@ thread_exit (void)
   if(thread_current()->parent_child != NULL){
     if(thread_current()->parent_child->alive_count == 1){
       palloc_free_page ((void*) thread_current()->parent_child->file_name);
+      free(thread_current()->parent_child);
     }
     else { // Synchronize
       thread_current()->parent_child->alive_count -= 1;
