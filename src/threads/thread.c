@@ -279,11 +279,21 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
+
+// ------------------------ New -----------------------------------
+
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->status);
   if(thread_current()->parent_child != NULL){
     if(thread_current()->parent_child->alive_count == 1){
       palloc_free_page ((void*) thread_current()->parent_child->file_name);
+      free(thread_current()->parent_child);
     }
+    else { // Synchronize
+      thread_current()->parent_child->alive_count -= 1;
+    }
+
+// ------------------------ End New -----------------------------------
+
   }
   for(int fd = 0; fd < MAX_FILES_OPEN; fd++){
     if(thread_current()->fd_array[fd] == 1){
