@@ -1,5 +1,6 @@
 #include "threads/thread.h"
 #include <debug.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <random.h>
 #include <stdio.h>
@@ -289,7 +290,11 @@ thread_exit (void)
       free(thread_current()->parent_child);
     }
     else { // Synchronize
+      struct semaphore sema = thread_current()->parent_child->sema;
+      sema_up(&sema);
       thread_current()->parent_child->alive_count -= 1;
+
+      sema_down(&sema);
     }
 
 // ------------------------ End New -----------------------------------

@@ -25,6 +25,7 @@ struct parent_child
    struct thread* parent_thread;
    const char * file_name;
    int exit_status;
+   struct semaphore sema;
 };
 
 // ------------------------ End New -----------------------------------

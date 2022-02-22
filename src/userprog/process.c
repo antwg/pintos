@@ -1,6 +1,6 @@
 #include "userprog/process.h"
-#include <debug.h>
 #include <stdlib.h>
+#include <debug.h>
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
@@ -44,11 +44,14 @@ process_execute (const char *file_name)
 
   //----------------------------- New ----------------------------------------
   struct parent_child* shared_data_ptr = (struct parent_child*) malloc(sizeof(struct parent_child*));
+  struct semaphore sema_;
+  sema_init(&sema_, 0);
+  shared_data_ptr->sema = sema_;
   shared_data_ptr->parent_thread = thread_current();
   shared_data_ptr->alive_count = 2;
   shared_data_ptr->exit_status = -1;
   shared_data_ptr->file_name = fn_copy;
-    
+ 
   thread_current()->parent_child = shared_data_ptr;
 
   /* Create a new thread to execute FILE_NAME. */

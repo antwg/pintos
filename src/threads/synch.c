@@ -29,6 +29,7 @@
 #include "threads/synch.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
@@ -113,9 +114,12 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
+  //printf("Before check\n");
+  //printf("Is empty %d\n", list_empty(&sema->waiters));
   if (!list_empty (&sema->waiters)) 
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+  //printf("After if");
   sema->value++;
   intr_set_level (old_level);
 }
