@@ -1,4 +1,5 @@
 #include "userprog/process.h"
+#include <malloc.h>
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
@@ -40,19 +41,23 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  struct parent_child shared_data = {(int) 2, thread_current(), fn_copy, -1};
+
+  //----------------------------- New ----------------------------------------
+  struct parent_child shared_data = {(int) 2, thread_current(), fn_copy, -1}; // Malloc
   thread_current()->parent_child = &shared_data;
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, &shared_data);
 
   enum intr_level old_level;
-  old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
+  old_level = intr_disable(); // Interrupts need to be disabled to unblock/block thread
   thread_block();
   intr_set_level(old_level);
 
   if (shared_data.exit_status == -1)
     tid = -1;
+
+  //----------------------------- End New ----------------------------------------
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
@@ -65,9 +70,11 @@ process_execute (const char *file_name)
 static void
 start_process (void *frame)
 {
+    //----------------------------- New ----------------------------------------
   struct parent_child *shared_data = (struct parent_child*) frame;
   char *file_name = shared_data->file_name;
 
+    //----------------------------- End New ----------------------------------------
 
   struct intr_frame if_;
   bool success;
@@ -84,6 +91,8 @@ start_process (void *frame)
   if (!success)
     thread_exit ();
 
+  //----------------------------- New ----------------------------------------
+
   shared_data->exit_status = 0;
 
   // Unblock parent
@@ -91,6 +100,8 @@ start_process (void *frame)
   old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
   thread_unblock(shared_data-> parent_thread);
   intr_set_level(old_level);
+
+    //----------------------------- End New ----------------------------------------
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -258,6 +269,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
+
 //#define STACK_DEBUG
 
 #ifdef STACK_DEBUG

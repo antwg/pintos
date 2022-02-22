@@ -134,7 +134,7 @@ void exec_call(struct intr_frame *f){
     f -> eax = pid;
     return;
   }
-  printf("fungerar inte att starta tråden");
+  printf("Can't start thread\n");
   f -> eax = -1;
 
 }

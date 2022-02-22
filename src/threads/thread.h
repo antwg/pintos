@@ -16,6 +16,8 @@ enum thread_status
    THREAD_DYING    /* About to be destroyed. */
 };
 
+// ------------------------ New -----------------------------------
+
 struct parent_child
 {
    int alive_count;
@@ -23,6 +25,8 @@ struct parent_child
    const char * file_name;
    int exit_status;
 };
+
+// ------------------------ End New -----------------------------------
 
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
