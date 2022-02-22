@@ -275,7 +275,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
      information. This will be useful when you debug the program
      stack.*/
 
-//#define STACK_DEBUG
+#define STACK_DEBUG
 
 #ifdef STACK_DEBUG
   printf("*esp is %p\nstack contents:\n", *esp);
@@ -540,7 +540,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE -12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
