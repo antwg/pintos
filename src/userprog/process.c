@@ -18,6 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 //static thread_func start_process(void* frame) NO_RETURN;
 static void start_process(void*) NO_RETURN;
@@ -44,31 +45,38 @@ process_execute (const char *file_name)
 
   //----------------------------- New ----------------------------------------
   struct parent_child* shared_data_ptr = (struct parent_child*) malloc(sizeof(struct parent_child*));
-  struct semaphore sema_;
-  sema_init(&sema_, 0);
-  shared_data_ptr->sema = sema_;
+  //struct semaphore *sema_ = (struct semaphore*) malloc(sizeof(struct semaphore));
+  //shared_data_ptr->sema = sema_;
   shared_data_ptr->parent_thread = thread_current();
   shared_data_ptr->alive_count = 2;
   shared_data_ptr->exit_status = -1;
   shared_data_ptr->file_name = fn_copy;
- 
+  //shared_data_ptr->elem.next = list_end(&(thread_current()->child_list)); 
+  //shared_data_ptr->elem.prev = list_rend(&(thread_current()->child_list));
+  printf("now we are done with the semaphores");
   thread_current()->parent_child = shared_data_ptr;
+  printf("sgeg\n");
+  //list_push_back(&(thread_current()->child_list), &(thread_current()->parent_child->elem));
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, shared_data_ptr);
-
+printf("afeagegsghs\n");
   enum intr_level old_level;
   old_level = intr_disable(); // Interrupts need to be disabled to unblock/block thread
   thread_block();
   intr_set_level(old_level);
+  printf("now the semaphores\n");
+  sema_init(&(shared_data_ptr->sema), 0);
 
   if (shared_data_ptr->exit_status == -1)
     tid = -1;
+
 
   //----------------------------- End New ----------------------------------------
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+  printf("end of the func");
   return tid;
 }
 
@@ -78,22 +86,23 @@ process_execute (const char *file_name)
 static void
 start_process (void *frame)
 {
+  printf("Inside start process");
     //----------------------------- New ----------------------------------------
   struct parent_child *shared_data = (struct parent_child*) frame;
   char *file_name = shared_data->file_name;
 
     //----------------------------- End New ----------------------------------------
-
+  printf("after cast");
   struct intr_frame if_;
   bool success;
-
+  printf("file_name %s\n", file_name);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
+  printf("after load");
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success)
@@ -256,6 +265,8 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 bool
 load (const char *file_name, void (**eip) (void), void **esp)
 {
+  printf("in load\n");
+  printf("filename in load: %s" , file_name);
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -449,7 +460,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
      assertions in memcpy(), etc. */
   if (phdr->p_vaddr < PGSIZE)
     return false;
-
+  printf("exit l0ad");
   /* It's okay. */
   return true;
 }

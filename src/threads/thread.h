@@ -26,6 +26,7 @@ struct parent_child
    const char * file_name;
    int exit_status;
    struct semaphore sema;
+   //struct list_elem elem;
 };
 
 // ------------------------ End New -----------------------------------
@@ -110,6 +111,7 @@ struct thread
    int priority;              /* Priority. */
    struct thread *parent;
    struct parent_child *parent_child;
+   //struct list child_list;
 #ifdef USERPROG
    int fd_array[MAX_FILES_OPEN];            /* Array of 1's and 0's, 1 meaning fd used, 0 meaning unused  */
    struct file *file_array[MAX_FILES_OPEN]; /* Array of file* corresponding to fd's in fd_array */

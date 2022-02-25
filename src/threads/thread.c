@@ -13,6 +13,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "filesys/file.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 
@@ -96,6 +97,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  //list_init(&(thread_current()->child_list));
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -290,11 +292,11 @@ thread_exit (void)
       free(thread_current()->parent_child);
     }
     else { // Synchronize
-      struct semaphore sema = thread_current()->parent_child->sema;
-      sema_up(&sema);
+      //struct semaphore sema = thread_current()->parent_child->sema;
+      //sema_up(&sema);
       thread_current()->parent_child->alive_count -= 1;
 
-      sema_down(&sema);
+      //sema_down(&sema);
     }
 
 // ------------------------ End New -----------------------------------
