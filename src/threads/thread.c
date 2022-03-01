@@ -12,6 +12,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "filesys/file.h"
+#include <stdlib.h>
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 
@@ -95,6 +97,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  list_init(&(thread_current()->children));
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -283,8 +286,48 @@ thread_exit (void)
     if(thread_current()->fd_array[fd] == 1){
       file_close(thread_get_file(fd));
       thread_remove_fd(fd);
+      //Free?
     }
   }
+
+// -------------------------------------------------------------
+  
+  /* Handling shared info between this thread and parent/children */
+  sema_up(&thread_current()->parent_child->sema);
+  //sema_down(&thread_current()->parent_child->sema);
+  /* If this thread has any childs, update those parent_child structs */
+  struct list* children = &(thread_current()->children);
+  struct list_elem* e = list_begin(children);
+  struct list_elem* e_old;
+/*
+  if (!list_empty(children)) {
+    while (e != list_end(children)) {
+      struct parent_child *pcc = list_entry (e, struct parent_child, elem);
+  
+      e_old = e;
+      e = list_next(e);
+  
+      if (pcc->alive_count == 1) {
+        list_remove(e_old);
+        free(pcc);
+      } else {
+        pcc->alive_count -= 1;
+      }
+    }
+  }
+
+  //Update the parent_struct between this thread and its parent
+  struct parent_child* pc = thread_current()->parent_child;
+  if (pc->alive_count == 1) {
+    free(pc);
+  } else {
+    pc->alive_count -= 1;
+    sema_up(&thread_current()->parent_child->sema);
+  }
+*/
+
+// -------------------------------------------------------------
+
   process_exit ();
 #endif
 

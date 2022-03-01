@@ -17,6 +17,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include <stdlib.h>
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -38,21 +40,53 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+// ------------------------------------------------------------------
+
+  struct parent_child* pc = malloc(sizeof(struct parent_child));
+  pc->filename = fn_copy;
+  pc->exit_status = -1;
+  pc->alive_count = 2;
+  pc->parent = thread_current();
+  pc->child = NULL;
+  sema_init(&(pc->sema), 1);
+  sema_init(&(pc->exec_sema), 0);
+
+// ------------------------------------------------------------------
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, pc);
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
+  }
+  else {
+    /* Sleep and wait for child to start executing (or fail) */
+    sema_down(&(pc->exec_sema));
+
+    /* If child couldn't start executing, return -1, else add
+     * this to childs list in parent process */
+    if ( pc->child == NULL ) {
+      tid = TID_ERROR;
+      free(pc);
+    } else {
+      list_push_back(&(thread_current()->children), &(pc->elem));
+    }
+
+  }
+  printf("Back to parent");
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *pointer)
 {
-  char *file_name = file_name_;
+  struct parent_child* pc = (struct parent_child*)pointer;
+  char *file_name = pc->filename;
   struct intr_frame if_;
   bool success;
+
+  printf("Started child running: %s", pc->filename);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -61,10 +95,18 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  printf("Succeeded start: %d", success);
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success)
+  if (!success){
+    sema_up(&(pc->exec_sema));
     thread_exit ();
+  }
+
+/* Set this threads parent to the passed parent_child struct */
+  thread_current()->parent_child = pc;
+  pc->child = thread_current();
+  sema_up(&(pc->exec_sema));
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

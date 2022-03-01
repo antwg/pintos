@@ -40,7 +40,15 @@ syscall_handler (struct intr_frame *f UNUSED) {
     case SYS_EXIT:
       thread_exit();
       break;
+    case SYS_EXEC:
+      exec_call(f);
+      break;
   }
+}
+
+void exec_call(struct intr_frame *f){
+  void *name = *(void**) (f->esp + 4);
+  return process_execute(name);
 }
 
 void halt_call(){

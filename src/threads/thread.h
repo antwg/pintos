@@ -16,6 +16,18 @@ enum thread_status
     THREAD_DYING        /* About to be destroyed. */
   };
 
+struct parent_child{
+  int exit_status;
+  int alive_count;
+  struct semaphore exec_sema;
+  struct semaphore sema;
+  struct thread* parent;
+  struct thread* child;
+  char* filename;
+
+  struct list_elem elem;
+};
+
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -96,6 +108,10 @@ struct thread
     #ifdef USERPROG
     int fd_array[MAX_FILES_OPEN];                  /* Array of 1's and 0's, 1 meaning fd used, 0 meaning unused  */
     struct file* file_array[MAX_FILES_OPEN];       /* Array of file* corresponding to fd's in fd_array */
+    struct parent_child* parent_child;
+
+    /* List of parent_children structs for this threads childs. */
+    struct list children;
     #endif
 
     /* Shared between thread.c and synch.c. */
