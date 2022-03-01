@@ -51,6 +51,7 @@ process_execute (const char *file_name)
   shared_data_ptr->alive_count = 2;
   shared_data_ptr->exit_status = -1;
   shared_data_ptr->file_name = fn_copy;
+  sema_init(&(shared_data_ptr->sema), 1);
   //shared_data_ptr->elem.next = list_end(&(thread_current()->child_list)); 
   //shared_data_ptr->elem.prev = list_rend(&(thread_current()->child_list));
   printf("now we are done with the semaphores");
@@ -66,7 +67,7 @@ printf("afeagegsghs\n");
   thread_block();
   intr_set_level(old_level);
   printf("now the semaphores\n");
-  sema_init(&(shared_data_ptr->sema), 0);
+  //sema_init(&(shared_data_ptr->sema), 1);
 
   if (shared_data_ptr->exit_status == -1)
     tid = -1;
