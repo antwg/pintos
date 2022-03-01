@@ -110,10 +110,10 @@ struct thread
     struct file* file_array[MAX_FILES_OPEN];       /* Array of file* corresponding to fd's in fd_array */
     struct parent_child* parent_child;
 
+    
+    #endif
     /* List of parent_children structs for this threads childs. */
     struct list children;
-    #endif
-
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
