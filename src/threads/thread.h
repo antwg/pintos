@@ -25,7 +25,7 @@ struct parent_child{
   struct thread* child;
   char* filename;
 
-  struct list_elem elem;
+  struct list_elem* elem;
 };
 
 /* Thread identifier type.

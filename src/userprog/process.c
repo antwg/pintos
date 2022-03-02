@@ -48,6 +48,10 @@ process_execute (const char *file_name)
   pc->alive_count = 2;
   pc->parent = thread_current();
   pc->child = NULL;
+  //pc->elem->next = NULL;
+  struct list_elem elem = {list_end(&thread_current()->children), NULL};// list_end(&thread_current()->children)};
+  pc->elem = &elem;
+  //pc->elem->prev = NULL;//list_end(&thread_current()->children);
   sema_init(&(pc->sema), 1);
   sema_init(&(pc->exec_sema), 0);
 
@@ -68,11 +72,15 @@ process_execute (const char *file_name)
       tid = TID_ERROR;
       free(pc);
     } else {
-      list_push_back(&(thread_current()->children), &(pc->elem));
+      //printf("\n\n last elem in list; %d\n", list_end(&thread_current()->children));
+      //printf("first elem in list; %d\n", list_rend(&thread_current()->children));
+      //printf("PC->elem->prev: %d\n", pc->elem->prev);
+      //printf("PC->elem->next: %d\n", pc->elem->next);
+      //list_push_back(&(thread_current()->children), pc->elem);
     }
 
   }
-  printf("Back to parent");
+  //printf("Back to parent");
   return tid;
 }
 
@@ -86,7 +94,7 @@ start_process (void *pointer)
   struct intr_frame if_;
   bool success;
 
-  printf("Started child running: %s", pc->filename);
+  //printf("Started child running: %s", pc->filename);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -95,7 +103,7 @@ start_process (void *pointer)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  printf("Succeeded start: %d", success);
+  //printf("Succeeded start: %d", success);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){

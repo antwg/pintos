@@ -168,6 +168,10 @@ list_tail (struct list *list)
 void
 list_insert (struct list_elem *before, struct list_elem *elem)
 {
+  //printf("prev in insert: %d\n", elem->prev);
+  //printf("next in insert: %d\n", elem->next);
+  //printf("Is interior: %d\n", is_interior (before));
+  //printf("Is tail: %d\n", is_tail (before));
   ASSERT (is_interior (before) || is_tail (before));
   ASSERT (elem != NULL);
 

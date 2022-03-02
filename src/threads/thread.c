@@ -293,39 +293,40 @@ thread_exit (void)
 // -------------------------------------------------------------
   
   /* Handling shared info between this thread and parent/children */
-  sema_up(&thread_current()->parent_child->sema);
-  //sema_down(&thread_current()->parent_child->sema);
-  /* If this thread has any childs, update those parent_child structs */
+  sema_down(&thread_current()->parent_child->sema);
+
+  /* If this thread has any children, update those parent_child structs */
   struct list* children = &(thread_current()->children);
   struct list_elem* e = list_begin(children);
   struct list_elem* e_old;
-/*
-  if (!list_empty(children)) {
-    while (e != list_end(children)) {
-      struct parent_child *pcc = list_entry (e, struct parent_child, elem);
-  
-      e_old = e;
-      e = list_next(e);
-  
-      if (pcc->alive_count == 1) {
-        list_remove(e_old);
-        free(pcc);
-      } else {
-        pcc->alive_count -= 1;
-      }
-    }
-  }
+//
+  //if (!list_empty(children)) {
+  //  while (e != list_end(children)) {
+  //    struct parent_child *pcc = list_entry (e, struct parent_child, elem);
+  //
+  //    e_old = e;
+  //    e = list_next(e);
+//
+  //    if (pcc->alive_count == 1) {
+  //      list_remove(e_old);
+  //      free(pcc);
+  //    } else {
+  //      pcc->alive_count -= 1;
+  //    }
+  //  }
+  //}
 
-  //Update the parent_struct between this thread and its parent
-  struct parent_child* pc = thread_current()->parent_child;
-  if (pc->alive_count == 1) {
-    free(pc);
-  } else {
-    pc->alive_count -= 1;
-    sema_up(&thread_current()->parent_child->sema);
-  }
-*/
-
+  ////Update the parent_struct between this thread and its parent
+  //struct parent_child* pc = thread_current()->parent_child;
+  //if (pc->alive_count == 1) {
+  //  free(pc);
+  //} else {
+  //  pc->alive_count -= 1;
+  //  sema_up(&thread_current()->parent_child->sema);
+  //}
+//
+//
+//
 // -------------------------------------------------------------
 
   process_exit ();

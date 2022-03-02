@@ -48,7 +48,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 
 void exec_call(struct intr_frame *f){
   void *name = *(void**) (f->esp + 4);
-  return process_execute(name);
+  f->eax = process_execute(name);
 }
 
 void halt_call(){
