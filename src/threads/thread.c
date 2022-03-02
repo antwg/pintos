@@ -97,7 +97,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  list_init(&(thread_current()->children));
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -297,36 +296,45 @@ thread_exit (void)
 
   /* If this thread has any children, update those parent_child structs */
   struct list* children = &(thread_current()->children);
-  struct list_elem* e = list_begin(children);
+  //struct list_elem* e = list_begin(children);
   struct list_elem* e_old;
-//
-  //if (!list_empty(children)) {
-  //  while (e != list_end(children)) {
-  //    struct parent_child *pcc = list_entry (e, struct parent_child, elem);
-  //
-  //    e_old = e;
-  //    e = list_next(e);
-//
-  //    if (pcc->alive_count == 1) {
-  //      list_remove(e_old);
-  //      free(pcc);
-  //    } else {
-  //      pcc->alive_count -= 1;
-  //    }
-  //  }
-  //}
+/*
+  if (!list_empty(children)){
+    struct list_elem *e;
+    for (e = list_begin(children); e != list_end(children);
+          e = list_next(e)){
+      
+    printf("%d\n", e);
+    
 
-  ////Update the parent_struct between this thread and its parent
-  //struct parent_child* pc = thread_current()->parent_child;
-  //if (pc->alive_count == 1) {
-  //  free(pc);
-  //} else {
-  //  pc->alive_count -= 1;
-  //  sema_up(&thread_current()->parent_child->sema);
-  //}
-//
-//
-//
+  if (!list_empty(children)) {
+    while (e != list_end(children)) {
+      struct parent_child *pcc = list_entry (e, struct parent_child, elem);
+  
+      e_old = e;
+      e = list_next(e);
+  
+      if (pcc->alive_count == 1) {
+        list_remove(e_old);
+        free(pcc);
+      } 
+      else {
+        pcc->alive_count -= 1;
+      }
+    }
+  }*/
+
+  //Update the parent_struct between this thread and its parent
+  struct parent_child* pc = thread_current()->parent_child;
+  if (pc->alive_count == 1) {
+    free(pc);
+  } else {
+    pc->alive_count -= 1;
+    sema_up(&thread_current()->parent_child->sema);
+  }
+ 
+ 
+ 
 // -------------------------------------------------------------
 
   process_exit ();
