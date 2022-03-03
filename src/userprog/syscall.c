@@ -43,7 +43,14 @@ syscall_handler (struct intr_frame *f UNUSED) {
     case SYS_EXEC:
       exec_call(f);
       break;
+    case SYS_WAIT:
+      wait_call(f);
+      break;
   }
+}
+
+void wait_call(struct intr_frame *f){
+  f->eax = process_wait(*(void**) (f->esp + 4));
 }
 
 void exec_call(struct intr_frame *f){

@@ -53,8 +53,8 @@ process_execute (const char *file_name)
   pc->elem = elem;
   sema_init(&(pc->sema), 1);
   sema_init(&(pc->exec_sema), 0);
+  sema_init(&(pc->sys_wait_sema), 1);
 
-  
 
 // ------------------------------------------------------------------
 
@@ -86,7 +86,6 @@ start_process (void *pointer)
 {
   struct parent_child* pc = (struct parent_child*)pointer;
   char *file_name = pc->filename;
-  //printf("File_name in start_process: %s\n", file_name);
   struct intr_frame if_;
   bool success;
 
@@ -97,7 +96,6 @@ start_process (void *pointer)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  //printf("Succeeded start: %d", success);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
@@ -132,10 +130,26 @@ start_process (void *pointer)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-  while(true){
-    ;
-  };
+  while(true){;}
   return -1;
+  struct thread *t = thread_current();
+  struct list_elem *elem;
+  struct parent_child *pc;
+  bool found_thread = false;
+
+  // Check if tid is a child of current thread, if not return -1
+  for(elem = list_begin(&t->children); elem != list_end(&t->children); elem = list_next(elem)){
+    pc = list_entry (elem, struct parent_child, elem);
+    if(child_tid == pc->child->tid){
+      found_thread = true;
+      break;
+    }
+  }
+  if(!found_thread) return -1;
+
+  sema_down(&pc->sys_wait_sema); 
+  
+  return pc->exit_status;
 }
 
 /* Free the current process's resources. */

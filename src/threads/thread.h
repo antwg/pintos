@@ -21,6 +21,7 @@ struct parent_child{
   int alive_count;
   struct semaphore exec_sema;
   struct semaphore sema;
+  struct semaphore sys_wait_sema;
   struct thread* parent;
   struct thread* child;
   char* filename;
