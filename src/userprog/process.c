@@ -1,6 +1,5 @@
 #include "userprog/process.h"
 #include <debug.h>
-#include <stdlib.h>
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
@@ -19,16 +18,13 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-//static thread_func start_process(void* frame) NO_RETURN;
-static void start_process(void*) NO_RETURN;
+static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-
-
 tid_t
 process_execute (const char *file_name)
 {
@@ -71,7 +67,6 @@ process_execute (const char *file_name)
 
 /* A thread function that loads a user process and starts it
    running. */
-
 static void
 start_process (void *frame)
 {
@@ -95,18 +90,6 @@ start_process (void *frame)
   palloc_free_page (file_name);
   if (!success)
     thread_exit ();
-
-  //----------------------------- New ----------------------------------------
-
-  shared_data->exit_status = 0;
-
-  // Unblock parent
-  enum intr_level old_level;
-  old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
-  thread_unblock(shared_data-> parent_thread);
-  intr_set_level(old_level);
-
-    //----------------------------- End New ----------------------------------------
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -274,8 +257,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
-
-//#define STACK_DEBUG
+/*#define STACK_DEBUG*/
 
 #ifdef STACK_DEBUG
   printf("*esp is %p\nstack contents:\n", *esp);
