@@ -301,17 +301,17 @@ thread_exit (void)
 
   if (!list_empty(children)) {
     while (e != list_end(children)) {
-      struct parent_child *pcc = list_entry (e, struct parent_child, elem);
+      struct parent_child *pc_elem = list_entry (e, struct parent_child, elem);
       e_old = e;
       e = list_next(e);
       
   
       if (pcc->alive_count == 1) {
         list_remove(e_old);
-        free(pcc);
+        free(pc_elem);
       } 
       else {
-        pcc->alive_count -= 1;
+        pc_elem->alive_count -= 1;
       }
     }
   }
