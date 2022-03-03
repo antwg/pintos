@@ -306,7 +306,7 @@ thread_exit (void)
       e = list_next(e);
       
   
-      if (pcc->alive_count == 1) {
+      if (pc_elem->alive_count == 1) {
         list_remove(e_old);
         free(pc_elem);
       } 
