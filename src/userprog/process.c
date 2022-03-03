@@ -86,10 +86,9 @@ start_process (void *pointer)
 {
   struct parent_child* pc = (struct parent_child*)pointer;
   char *file_name = pc->filename;
+  //printf("File_name in start_process: %s\n", file_name);
   struct intr_frame if_;
   bool success;
-
-  //printf("Started child running: %s", pc->filename);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -257,6 +256,8 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 bool
 load (const char *file_name, void (**eip) (void), void **esp)
 {
+  //printf("inside load code :) ");
+  //printf("Name: %s", file_name);
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -264,6 +265,26 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+
+// ----------------------------------------------------------
+  
+  int argc = 0;
+  char *argv[32];
+  char *token;
+  char *save_ptr;
+
+  // Tokenization of file_name into arguments
+  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
+    argv[argc] = token;
+    argc++;
+  }
+  
+  // Set last argument to NULL
+  char* arg_ptr[argc + 1];
+  arg_ptr[argc] = 0;
+
+  // ----------------------------------------------------------
+  
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL)
@@ -275,10 +296,44 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   }
 
+  // ----------------------------------------------------------
+
+  // Adds args to stack and adds pointers to said arguments to arg_ptr
+  for (i = argc - 1; i >= 0; i--) {
+    *esp -= (strlen (argv[i]) + 1);
+    memcpy (*esp, argv[i], strlen (argv[i]) + 1);
+    arg_ptr[i] = *esp;
+  }
+
+  // Adjust stack pointer so that it's divisible by 4
+  while ( ((long) *esp) % 4 != 0) {
+      *esp -= 1;
+      memset (*esp, 0, 1); // doesn't matter because the last argument is 0 either way.
+    }
+
+  // Move stack pointer down by the size of all all pointers then
+  // then copy the pointers to the arg to the stack
+  *esp -= sizeof (arg_ptr[0]) * (argc + 1);
+  memcpy (*esp, &arg_ptr[0], sizeof (arg_ptr[0]) * (argc + 1));
+
+  // Adds pointer to argv[0]
+  memcpy(*esp - 4, esp, 4); // (arrow at the bottom of the picture).
+  *esp -= 4;
+
+  // Copies argc to stack
+  *esp -= 4;
+  memcpy (*esp, &argc, 4);
+
+  // Sets return address to 0
+  *esp -= 4;
+  memset (*esp, 0, 4);
+
+  // ----------------------------------------------------------
+
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
-/*#define STACK_DEBUG*/
+#define STACK_DEBUG
 
 #ifdef STACK_DEBUG
   printf("*esp is %p\nstack contents:\n", *esp);
@@ -544,7 +599,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE -12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
