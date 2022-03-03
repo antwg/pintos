@@ -48,13 +48,13 @@ process_execute (const char *file_name)
   pc->alive_count = 2;
   pc->parent = thread_current();
   pc->child = NULL;
-  //pc->elem->next = NULL;
-  struct list_elem elem = {list_end(&thread_current()->children), NULL};// list_end(&thread_current()->children)};
+  list_init(&thread_current()->children);
+  struct list_elem elem = {list_end(&thread_current()->children), NULL};
   pc->elem = elem;
-  //pc->elem->prev = NULL;//list_end(&thread_current()->children);
   sema_init(&(pc->sema), 1);
   sema_init(&(pc->exec_sema), 0);
-  list_init(&thread_current()->children);
+
+  
 
 // ------------------------------------------------------------------
 
@@ -73,15 +73,9 @@ process_execute (const char *file_name)
       tid = TID_ERROR;
       free(pc);
     } else {
-      //printf("\n\n last elem in list; %d\n", list_end(&thread_current()->children));
-      //printf("first elem in list; %d\n", list_rend(&thread_current()->children));
-      //printf("PC->elem->prev: %d\n", pc->elem->prev);
-      //printf("PC->elem->next: %d\n", pc->elem->next);
-      list_push_back(&(thread_current()->children), &(pc->elem));
+      list_push_back(&(thread_current()->children), &(pc->elem.next));
     }
-
   }
-  //printf("Back to parent");
   return tid;
 }
 

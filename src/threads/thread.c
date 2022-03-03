@@ -278,6 +278,7 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  //printf("Thread exit\n");
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -288,31 +289,22 @@ thread_exit (void)
       //Free?
     }
   }
-
 // -------------------------------------------------------------
   
   /* Handling shared info between this thread and parent/children */
   sema_down(&thread_current()->parent_child->sema);
 
   /* If this thread has any children, update those parent_child structs */
-  struct list* children = &(thread_current()->children);
-  //struct list_elem* e = list_begin(children);
+  struct list* children = &(thread_current()->parent_child->parent->children);
+  struct list_elem* e = list_begin(children);
   struct list_elem* e_old;
-/*
-  if (!list_empty(children)){
-    struct list_elem *e;
-    for (e = list_begin(children); e != list_end(children);
-          e = list_next(e)){
-      
-    printf("%d\n", e);
-    
 
   if (!list_empty(children)) {
     while (e != list_end(children)) {
       struct parent_child *pcc = list_entry (e, struct parent_child, elem);
-  
       e_old = e;
       e = list_next(e);
+      
   
       if (pcc->alive_count == 1) {
         list_remove(e_old);
@@ -322,7 +314,7 @@ thread_exit (void)
         pcc->alive_count -= 1;
       }
     }
-  }*/
+  }
 
   //Update the parent_struct between this thread and its parent
   struct parent_child* pc = thread_current()->parent_child;
@@ -332,8 +324,6 @@ thread_exit (void)
     pc->alive_count -= 1;
     sema_up(&thread_current()->parent_child->sema);
   }
- 
- 
  
 // -------------------------------------------------------------
 
