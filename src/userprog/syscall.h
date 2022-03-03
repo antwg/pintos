@@ -21,6 +21,4 @@ void read_call(struct intr_frame *f);
 
 void write_call (struct intr_frame *f);
 
-void exec_call(struct intr_frame *f);
-
 #endif /* userprog/syscall.h */

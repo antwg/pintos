@@ -125,16 +125,3 @@ void write_call (struct intr_frame *f){
   }
   f -> eax = written_bits;
 }
-
-void exec_call(struct intr_frame *f){
-
-  const void *name = *(void**) (f->esp + 4);
-  tid_t pid = process_execute(name);
-  if(pid != TID_ERROR){
-    f -> eax = pid;
-    return;
-  }
-  printf("Can't start thread\n");
-  f -> eax = -1;
-
-}

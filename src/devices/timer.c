@@ -137,12 +137,12 @@ timer_sleep (int64_t ticks)
   // Create pointer to thread_comp
   bool (*comp_ptr)(const struct list_elem*, const struct list_elem*, void * aux) = &thread_comp;
 
+  // Insert to queue
+  list_insert_ordered(&queue, &node.elem, comp_ptr, NULL);
+
   // Block thread
   enum intr_level old_level;
   old_level = intr_disable (); // Temporarily block interrupts
-    // Insert to queue
-  list_insert_ordered(&queue, &node.elem, comp_ptr, NULL);
-
   thread_block();
   intr_set_level(old_level);
 }
@@ -183,9 +183,9 @@ timer_sleep_check(){
   struct list_elem *e = list_front(&queue);
   queue_node *node = list_entry(e, struct queue_node, elem);
 
-  if (timer_elapsed(node->start) >= node->ticks){
+  if (timer_elapsed(node->start) >= node->ticks && node->process->status == THREAD_BLOCKED){
     list_pop_front(&queue);   // removes thread from the wait queue
-    timer_sleep_check();      // if more than one thread need to wake up the same tick     TODO while loop
+    timer_sleep_check();      // if more than one thread need to wake up the same tick
     enum intr_level old_level;
     old_level = intr_disable(); // Interupts needs to bee disabled to unblock/block thread
     thread_unblock(node->process);
