@@ -162,8 +162,8 @@ thread_print_stats (void)
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
 tid_t
-thread_create (const char *name, int priority, thread_func *function,
-               void *aux) 
+thread_create (const char *name, int priority,
+               thread_func *function, void *aux) 
 {
   struct thread *t;
   struct kernel_thread_frame *kf;
@@ -282,22 +282,6 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
-
-// ------------------------ New -----------------------------------
-
-  printf("%s: exit(%d)\n", thread_current()->name, thread_current()->status);
-  if(thread_current()->parent_child != NULL){
-    if(thread_current()->parent_child->alive_count == 1){
-      palloc_free_page ((void*) thread_current()->parent_child->file_name);
-      free(thread_current()->parent_child);
-    }
-    else { // Synchronize
-      thread_current()->parent_child->alive_count -= 1;
-    }
-
-// ------------------------ End New -----------------------------------
-
-  }
   for(int fd = 0; fd < MAX_FILES_OPEN; fd++){
     if(thread_current()->fd_array[fd] == 1){
       file_close(thread_get_file(fd));
@@ -306,9 +290,6 @@ thread_exit (void)
     }
   }
 // -------------------------------------------------------------
-  
-  /* Handling shared info between this thread and parent/children */
-  sema_down(&thread_current()->parent_child->sema);
 
   /* If this thread has any children, update those parent_child structs */
   struct list* children = &(thread_current()->parent_child->parent->children);
@@ -327,7 +308,9 @@ thread_exit (void)
         free(pc_elem);
       } 
       else {
+        sema_down(&thread_current()->parent_child->sema);
         pc_elem->alive_count -= 1;
+        sema_up(&thread_current()->parent_child->sema);
       }
     }
   }
@@ -337,6 +320,7 @@ thread_exit (void)
   if (pc->alive_count == 1) {
     free(pc);
   } else {
+    sema_down(&thread_current()->parent_child->sema);
     pc->alive_count -= 1;
     sema_up(&thread_current()->parent_child->sema);
   }
@@ -444,7 +428,8 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
-
+
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -493,7 +478,8 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -641,7 +627,8 @@ allocate_tid (void)
 
   return tid;
 }
-
+
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);

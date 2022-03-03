@@ -4,30 +4,17 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include "filesys/file.h"
 #include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
-{
-   THREAD_RUNNING, /* Running thread. */
-   THREAD_READY,   /* Not running but ready to run. */
-   THREAD_BLOCKED, /* Waiting for an event to trigger. */
-   THREAD_DYING    /* About to be destroyed. */
-};
-
-// ------------------------ New -----------------------------------
-
-struct parent_child
-{
-   int alive_count;
-   struct thread* parent_thread;
-   const char * file_name;
-   int exit_status;
-};
-
-// ------------------------ End New -----------------------------------
+  {
+    THREAD_RUNNING,     /* Running thread. */
+    THREAD_READY,       /* Not running but ready to run. */
+    THREAD_BLOCKED,     /* Waiting for an event to trigger. */
+    THREAD_DYING        /* About to be destroyed. */
+  };
 
 struct parent_child{
   int exit_status;
@@ -44,12 +31,12 @@ struct parent_child{
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
-#define TID_ERROR ((tid_t)-1) /* Error value for tid_t. */
+#define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
 /* Thread priorities. */
-#define PRI_MIN 0      /* Lowest priority. */
-#define PRI_DEFAULT 31 /* Default priority. */
-#define PRI_MAX 63     /* Highest priority. */
+#define PRI_MIN 0                       /* Lowest priority. */
+#define PRI_DEFAULT 31                  /* Default priority. */
+#define PRI_MAX 63                      /* Highest priority. */
 
 /* The largest number of files a process is allowed to open */
 #define MAX_FILES_OPEN 128
@@ -110,7 +97,6 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
-
 struct thread
   {
     /* Owned by thread.c. */
@@ -131,50 +117,50 @@ struct thread
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
-   /* Owned by userprog/process.c. */
-   uint32_t *pagedir; /* Page directory. */
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-   /* Owned by thread.c. */
-   unsigned magic; /* Detects stack overflow. */
-};
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-void thread_init(void);
-void thread_start(void);
+void thread_init (void);
+void thread_start (void);
 
-void thread_tick(void);
-void thread_print_stats(void);
+void thread_tick (void);
+void thread_print_stats (void);
 
-typedef void thread_func(void *aux);
-tid_t thread_create(const char *name, int priority, thread_func *, void *);
+typedef void thread_func (void *aux);
+tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
-void thread_block(void);
-void thread_unblock(struct thread *);
+void thread_block (void);
+void thread_unblock (struct thread *);
 
-struct thread *thread_current(void);
-tid_t thread_tid(void);
-const char *thread_name(void);
+struct thread *thread_current (void);
+tid_t thread_tid (void);
+const char *thread_name (void);
 
-void thread_exit(void) NO_RETURN;
-void thread_yield(void);
+void thread_exit (void) NO_RETURN;
+void thread_yield (void);
 
 #ifdef USERPROG
-int thread_get_fd(struct file *f);
+int thread_get_fd(struct file* f);
 void thread_remove_fd(int fd);
-struct file *thread_get_file(int fd);
+struct file* thread_get_file(int fd);
 #endif
 
-int thread_get_priority(void);
-void thread_set_priority(int);
+int thread_get_priority (void);
+void thread_set_priority (int);
 
-int thread_get_nice(void);
-void thread_set_nice(int);
-int thread_get_recent_cpu(void);
-int thread_get_load_avg(void);
+int thread_get_nice (void);
+void thread_set_nice (int);
+int thread_get_recent_cpu (void);
+int thread_get_load_avg (void);
 
 #endif /* threads/thread.h */
