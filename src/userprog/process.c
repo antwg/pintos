@@ -73,7 +73,7 @@ process_execute (const char *file_name)
       tid = TID_ERROR;
       free(pc);
     } else {
-      list_push_back(&(thread_current()->children), &(pc->elem.next));
+      list_push_back(&(thread_current()->children), &(pc->elem));
     }
   }
   return tid;
