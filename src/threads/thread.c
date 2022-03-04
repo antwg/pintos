@@ -277,8 +277,7 @@ thread_tid (void)
    returns to the caller. */
 void
 thread_exit (void) 
-{
-  //printf("Thread exit\n");
+{ 
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -307,7 +306,7 @@ thread_exit (void)
         list_remove(e_old);
         free(pc_elem);
       } 
-      else {
+      else {  
         sema_down(&thread_current()->parent_child->sema);
         pc_elem->alive_count -= 1;
         sema_up(&thread_current()->parent_child->sema);
@@ -324,7 +323,6 @@ thread_exit (void)
     pc->alive_count -= 1;
     sema_up(&thread_current()->parent_child->sema);
   }
- 
 // -------------------------------------------------------------
 
   process_exit ();
