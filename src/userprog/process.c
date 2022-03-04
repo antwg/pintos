@@ -23,6 +23,12 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+struct arg_struct 
+{
+  char *file_name;
+  struct thread *parent;
+};
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -42,50 +48,35 @@ process_execute (const char *file_name)
 
 // ------------------------------------------------------------------
 
-  struct parent_child* pc = malloc(sizeof(struct parent_child));
-  pc->filename = fn_copy;
-  pc->exit_status = -1;
-  pc->alive_count = 2;
-  pc->parent = thread_current();
-  pc->child = NULL;
-  list_init(&thread_current()->children);
-  struct list_elem elem = {list_end(&thread_current()->children), NULL};
-  pc->elem = elem;
-  sema_init(&(pc->sema), 1);
-  sema_init(&(pc->exec_sema), 0);
-
-  
-
-// ------------------------------------------------------------------
+  struct arg_struct arg;
+  arg.file_name = fn_copy;
+  arg.parent = thread_current();
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, pc);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, &arg);
+
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
   }
-  else {
-    /* Sleep and wait for child to start executing (or fail) */
-    sema_down(&(pc->exec_sema));
 
-    /* If child couldn't start executing, return -1, else add
-     * this to childs list in parent process */
-    if ( pc->child == NULL ) {
-      tid = TID_ERROR;
-      free(pc);
-    } else {
-      list_push_back(&(thread_current()->children), &(pc->elem));
-    }
-  }
-  return tid;
+  sema_down(&thread_current()->process_execute_wait_on_child_sema); //TODO init
+
+
+  /* If child couldn't start executing, return -1, else add
+    * this to childs list in parent process */
+  if ( thread_current()->load_success == 1 ){ return tid;}
+  return -1;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *pointer)
+start_process (void *arg_)
 {
-  struct parent_child* pc = (struct parent_child*)pointer;
-  char *file_name = pc->filename;
+  struct arg_struct* arg = arg_;
+  char *file_name = arg->file_name;
+  struct thread* parent = arg->parent;
+
   struct intr_frame if_;
   bool success;
 
