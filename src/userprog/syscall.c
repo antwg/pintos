@@ -16,59 +16,79 @@ void syscall_init (void) {
 static void
 syscall_handler (struct intr_frame *f UNUSED) {
 
+//if(!valid_pointer(f->esp)){
+  //f-eax = -1
+  //exit_handler(-1);
+//}
+
   int syscall_nr = * (int*) f->esp;
   
   switch(syscall_nr){
     case SYS_HALT:
-      halt_call();
+      syscall_halt();
       break;
     case SYS_CREATE:
-      create_call(f);
+      syscall_create(f);
       break;
     case SYS_OPEN:
-      open_call(f);
+      syscall_open(f);
       break;
     case SYS_CLOSE:
-      close_call(f);
+      syscall_close(f);
       break;
     case SYS_READ:
-      read_call(f);
+      syscall_read(f);
       break;
     case SYS_WRITE:
-      write_call(f);
+      syscall_call(f);
       break;
     case SYS_EXIT:
-      thread_exit();
+      syscall_exit(f);
       break;
     case SYS_EXEC:
-      exec_call(f);
+      syscall_exec(f);
       break;
     case SYS_WAIT:
-      wait_call(f);
+      syscall_wait(f);
       break;
   }
 }
 
-void wait_call(struct intr_frame *f){
+void syscall_wait(struct intr_frame *f){
   f->eax = process_wait(*(void**) (f->esp + 4));
 }
 
-void exec_call(struct intr_frame *f){
+void syscall_exec(struct intr_frame *f){
   void *name = *(void**) (f->esp + 4);
   f->eax = process_execute(name);
 }
 
-void halt_call(){
+void syscall_halt(){
   power_off();
 }
 
-void create_call(struct intr_frame *f){
+void syscall_create(struct intr_frame *f){
   const void *name = *(void**) (f->esp + 4);
   unsigned size = *(unsigned*) (f->esp + 8);
   f -> eax = filesys_create(name, size); // Return true if successful, else false
+  if (f->eax == -1)
+    {
+      syscall_exit (f);
+    }
 }
 
-void open_call(struct intr_frame *f){
+void
+syscall_exit (struct intr_frame *f)
+{
+  //int *status = thread_current()->parent_child->exit_status;//*(void**) (f->esp + 4);
+  thread_current()->parent_child->exit_status = *(void**) (f->esp + 4);
+  //thread_current()->parent_child->exit_status = status;
+  printf("%s: exit(%d)\n", thread_name(), thread_current()->parent_child->exit_status);
+  //f->eax = status;
+  thread_exit ();
+}
+
+void syscall_open(struct intr_frame *f){
   const void *name = *(void**) (f->esp + 4);
   struct file *opened_file = filesys_open(name);
   if (opened_file == NULL){
@@ -78,13 +98,13 @@ void open_call(struct intr_frame *f){
   f -> eax = thread_get_fd(opened_file);
 }
 
-void close_call(struct intr_frame *f){
+void syscall_close(struct intr_frame *f){
   const int fd = *(int*) (f->esp + 4);
   file_close(thread_get_file(fd));
   thread_remove_fd(fd);
 }
 
-void read_call(struct intr_frame *f){
+void syscall_read(struct intr_frame *f){
   int fd = *(int*) (f-> esp + 4);
   char *buffer = *(void**) (f->esp + 8);
   unsigned size = *(unsigned*) (f->esp + 12);
@@ -112,7 +132,7 @@ void read_call(struct intr_frame *f){
   f -> eax = read_bits;
 }
 
-void write_call (struct intr_frame *f){
+void syscall_call (struct intr_frame *f){
   int fd = *(int*) (f-> esp + 4);
   const void *buffer = *(void**) (f->esp + 8);
   unsigned size = *(unsigned*) (f->esp + 12);

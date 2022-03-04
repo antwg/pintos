@@ -30,6 +30,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name)
 {
+  printf("In process execute -----------------------------------\n");
   char *fn_copy;
   tid_t tid;
 
@@ -77,7 +78,7 @@ process_execute (const char *file_name)
     }
   }
   return tid;
-}
+} 
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -130,7 +131,7 @@ start_process (void *pointer)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-  while(true){;}
+  //while(true){;}
   return -1;
   struct thread *t = thread_current();
   struct list_elem *elem;
@@ -147,6 +148,8 @@ process_wait (tid_t child_tid UNUSED)
   }
   if(!found_thread) return -1;
 
+  if (pc->alive_count == 1) return pc->exit_status;
+
   sema_down(&pc->sys_wait_sema); 
   
   return pc->exit_status;
@@ -158,6 +161,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -292,7 +296,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     argv[argc] = token;
     argc++;
   }
-  
+  strlcpy (t->name, argv[0], sizeof t->name);
+
   // Set last argument to NULL
   char* arg_ptr[argc + 1];
   arg_ptr[argc] = 0;
@@ -347,7 +352,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
-#define STACK_DEBUG
+//#define STACK_DEBUG
 
 #ifdef STACK_DEBUG
   printf("*esp is %p\nstack contents:\n", *esp);
