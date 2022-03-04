@@ -73,7 +73,7 @@ void syscall_create(struct intr_frame *f){
   f -> eax = filesys_create(name, size); // Return true if successful, else false
   if (f->eax == -1)
     {
-      syscall_exit (f);
+      //syscall_exit (f);
     }
 }
 
