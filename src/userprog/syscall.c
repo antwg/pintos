@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "threads/init.h"
 #include "devices/input.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -18,12 +19,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 
 //if(!valid_pointer(f->esp)){
   //f-eax = -1
-  //exit_handler(-1);
+  //exit_handler(-1); 
 //}
 
   int syscall_nr = * (int*) f->esp;
-  
-  switch(syscall_nr){
+  //printf("entering the interruppt switch case");
+  switch(syscall_nr){ 
     case SYS_HALT:
       syscall_halt();
       break;
@@ -55,7 +56,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 }
 
 void syscall_wait(struct intr_frame *f){
-  f->eax = process_wait(*(void**) (f->esp + 4));
+  f->eax = process_wait(**(tid_t**) (f->esp + 4));
 }
 
 void syscall_exec(struct intr_frame *f){
@@ -68,24 +69,33 @@ void syscall_halt(){
 }
 
 void syscall_create(struct intr_frame *f){
+   //printf("#inside create\n#");
   const void *name = *(void**) (f->esp + 4);
   unsigned size = *(unsigned*) (f->esp + 8);
   f -> eax = filesys_create(name, size); // Return true if successful, else false
-  if (f->eax == -1)
-    {
-      //syscall_exit (f);
-    }
+  //if (f->eax == -1)
+  //  {
+  //    //syscall_exit (f);
+  //  }
 }
 
 void
-syscall_exit (struct intr_frame *f)
+syscall_exit (struct intr_frame *f) 
 {
+  //printf("#inside exit#\n");
   //int *status = thread_current()->parent_child->exit_status;//*(void**) (f->esp + 4);
-  thread_current()->parent_child->exit_status = *(void**) (f->esp + 4);
+  uint32_t* args = ((uint32_t*) f->esp);
+  int status =  args[1];
+  //thread_current()->parent_child->exit_status = (int) status;
   //thread_current()->parent_child->exit_status = status;
-  printf("%s: exit(%d)\n", thread_name(), thread_current()->parent_child->exit_status);
-  //f->eax = status;
+  //thread_current()->parent_child->exit_status = **(unsigned int**) (f->esp + 4); 
+  //f->eax = **(unsigned int**) (f->esp + 4);
+  f->eax = status;
+  printf("%s: exit(%d)\n", thread_name(), status);
+  printf("inside exit");
   thread_exit ();
+  //f->eax = status;  
+  //thread_exit ();
 }
 
 void syscall_open(struct intr_frame *f){

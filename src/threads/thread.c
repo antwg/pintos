@@ -277,8 +277,8 @@ thread_tid (void)
    returns to the caller. */
 void
 thread_exit (void) 
-{
-  //printf("Thread exit\n");
+{ 
+  printf("Thread exit");
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -289,44 +289,6 @@ thread_exit (void)
       //Free?
     }
   }
-// -------------------------------------------------------------
-
-  /* If this thread has any children, update those parent_child structs */
-  struct list* children = &(thread_current()->parent_child->parent->children);
-  struct list_elem* e = list_begin(children);
-  struct list_elem* e_old;
-
-  if (!list_empty(children)) {
-    while (e != list_end(children)) {
-      struct parent_child *pc_elem = list_entry (e, struct parent_child, elem);
-      e_old = e;
-      e = list_next(e);
-      
-  
-      if (pc_elem->alive_count == 1) {
-        list_remove(e_old);
-        free(pc_elem);
-      } 
-      else {
-        sema_down(&thread_current()->parent_child->sema);
-        pc_elem->alive_count -= 1;
-        sema_up(&thread_current()->parent_child->sema);
-      }
-    }
-  }
-
-  //Update the parent_struct between this thread and its parent
-  struct parent_child* pc = thread_current()->parent_child;
-  if (pc->alive_count == 1) {
-    free(pc);
-  } else {
-    sema_down(&thread_current()->parent_child->sema);
-    pc->alive_count -= 1;
-    sema_up(&thread_current()->parent_child->sema);
-  }
- 
-// -------------------------------------------------------------
-
   process_exit ();
 #endif
 
@@ -337,6 +299,7 @@ thread_exit (void)
   schedule ();
   NOT_REACHED ();
 }
+
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
@@ -516,6 +479,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+  list_init(&t->children);
+  sema_init(&t->wait_on_child_load_sema, 0);
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

@@ -23,6 +23,13 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+struct arg_struct 
+{
+  char *file_name;
+  struct thread *parent;
+};
+
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -42,50 +49,37 @@ process_execute (const char *file_name)
 
 // ------------------------------------------------------------------
 
-  struct parent_child* pc = malloc(sizeof(struct parent_child));
-  pc->filename = fn_copy;
-  pc->exit_status = -1;
-  pc->alive_count = 2;
-  pc->parent = thread_current();
-  pc->child = NULL;
-  list_init(&thread_current()->children);
-  struct list_elem elem = {list_end(&thread_current()->children), NULL};
-  pc->elem = elem;
-  sema_init(&(pc->sema), 1);
-  sema_init(&(pc->exec_sema), 0);
-  sema_init(&(pc->sys_wait_sema), 1);
+  struct arg_struct arg;
+  arg.file_name = fn_copy;
+  arg.parent = thread_current();
 
-
-// ------------------------------------------------------------------
+  if (file_name == NULL) return -1;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, pc);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, &arg);
+
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
   }
-  else {
-    /* Sleep and wait for child to start executing (or fail) */
-    sema_down(&(pc->exec_sema));
 
-    /* If child couldn't start executing, return -1, else add
-     * this to childs list in parent process */
-    if ( pc->child == NULL ) {
-      tid = TID_ERROR;
-      free(pc);
-    } else {
-      list_push_back(&(thread_current()->children), &(pc->elem.next));
-    }
-  }
-  return tid;
-} 
+  sema_down(&thread_current()->wait_on_child_load_sema); //TODO init
+
+  /* If child couldn't start executing, return -1, else add
+    * this to childs list in parent process */
+  if ( thread_current()->load_success == 1 ) return tid;
+  return -1;
+}
+
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *pointer)
+start_process (void *arg_)
 {
-  struct parent_child* pc = (struct parent_child*)pointer;
-  char *file_name = pc->filename;
+  struct arg_struct* arg = arg_;
+  char *file_name = arg->file_name;
+  struct thread* parent = arg->parent;
+
   struct intr_frame if_;
   bool success;
 
@@ -96,17 +90,33 @@ start_process (void *pointer)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  parent->load_success = success;
+  struct parent_child *pc = thread_current()->parent_child;
+  //printf("Success: %d\n", success);
+  if (success){
+    pc = (struct parent_child*) malloc(sizeof(struct parent_child));
+    sema_init(&(pc->alive_count_sema), 1);      // de använder lock här istället. ska nog klura på hur man ska göra
+    pc->alive_count = 2;
+    pc->exit_status = 0;
+    pc->child = thread_current();
+    list_push_back(&parent->children, &pc->elem);   // list is not inited?
+  } else{
+    pc = NULL;
+  }
+  //printf("Exited if in start process\n");
+  
+  sema_up(&parent->wait_on_child_load_sema);
+  //printf("After sema up\n");
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
-    sema_up(&(pc->exec_sema));
+    //printf("Not successful, thread exit\n");
     thread_exit ();
   }
+  
 
-/* Set this threads parent to the passed parent_child struct */
-  thread_current()->parent_child = pc;
-  pc->child = thread_current();
-  sema_up(&(pc->exec_sema));
+  //printf("Assmebly code next");
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -117,6 +127,7 @@ start_process (void *pointer)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
+
 
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
@@ -150,17 +161,40 @@ process_wait (tid_t child_tid UNUSED)
   if (pc->alive_count == 1) return pc->exit_status;
 
   sema_down(&pc->sys_wait_sema); 
-  
-  return pc->exit_status;
+   
+  return pc->exit_status; 
 }
 
 /* Free the current process's resources. */
 void
 process_exit (void)
 {
+  printf("Process exit");
+  //printf("Thread name: %s\n\n", thread_name());
+  //printf("exit status is null : %d\n", thread_current()->parent_child == NULL);
+  //printf("%s: exit(%d)\n", thread_name(), thread_current()->parent_child->exit_status);
+
+  
   struct thread *cur = thread_current ();
   uint32_t *pd;
-  
+
+  struct list_elem *e;
+  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) 
+  {
+    struct parent_child *pc = list_entry (e, struct parent_child, elem);
+    if (pc != NULL){ 
+      sema_down(&pc->alive_count_sema);      // använder lock här istället så det kanske blir fel
+      pc->alive_count -= 1;
+      
+      if(pc->alive_count <= 0){
+        sema_up(&pc->alive_count_sema);
+        list_remove(&pc->elem);
+        free(pc);
+      } else{
+        sema_up(&pc->alive_count_sema);
+      }
+    }
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -179,6 +213,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 }
+
 
 /* Sets up the CPU for running user code in the current
    thread.

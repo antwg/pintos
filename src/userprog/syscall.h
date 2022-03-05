@@ -9,18 +9,22 @@ struct intr_frame;
 void syscall_init (void);
 
 // Helper functions
-void halt_call(void);
+void syscall_halt(void);
 
-void create_call(struct intr_frame *f);
+void syscall_create(struct intr_frame *f);
 
-void open_call(struct intr_frame *f);
+void syscall_open(struct intr_frame *f);
 
-void close_call(struct intr_frame *f);
+void syscall_close(struct intr_frame *f);
 
-void read_call(struct intr_frame *f);
+void syscall_read(struct intr_frame *f);
 
-void write_call (struct intr_frame *f);
+void syscall_call (struct intr_frame *f);
 
-void exec_call(struct intr_frame *f);
+void syscall_exec(struct intr_frame *f);
+
+void syscall_exit(struct intr_frame *f);
+
+void syscall_wait(struct intr_frame *f);
 
 #endif /* userprog/syscall.h */

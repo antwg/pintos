@@ -19,8 +19,7 @@ enum thread_status
 struct parent_child{
   int exit_status;
   int alive_count;
-  struct semaphore exec_sema;
-  struct semaphore sema;
+  struct semaphore alive_count_sema;
   struct semaphore sys_wait_sema;
   struct thread* parent;
   struct thread* child;
@@ -28,6 +27,7 @@ struct parent_child{
 
   struct list_elem elem;
 };
+
 
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
@@ -112,6 +112,8 @@ struct thread
 
     #endif
     struct parent_child* parent_child;
+    struct semaphore wait_on_child_load_sema;
+    bool load_success; 
     /* List of parent_children structs for this threads childs. */
     struct list children;
     /* Shared between thread.c and synch.c. */
