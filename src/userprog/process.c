@@ -157,7 +157,6 @@ process_exit (void)
   {
     struct parent_child *pc = list_entry (e, struct parent_child, elem);
     if (pc != NULL){ 
-      printf("we are pro programmers");
       sema_down(&pc->alive_count_sema);      // använder lock här istället så det kanske blir fel
       pc->alive_count -= 1;
       
