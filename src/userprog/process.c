@@ -52,19 +52,22 @@ process_execute (const char *file_name)
   arg.file_name = fn_copy;
   arg.parent = thread_current();
 
+  if (file_name == NULL) return -1;
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, &arg);
 
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
   }
+  
 
-  sema_down(&thread_current()->process_execute_wait_on_child_sema); //TODO init
+  sema_down(&thread_current()->wait_on_child_load_sema); //TODO init
 
 
   /* If child couldn't start executing, return -1, else add
     * this to childs list in parent process */
-  if ( thread_current()->load_success == 1 ){ return tid;}
+  if ( thread_current()->load_success == 1 ) return tid;
   return -1;
 }
 
@@ -80,8 +83,6 @@ start_process (void *arg_)
   struct intr_frame if_;
   bool success;
 
-  //printf("Started child running: %s", pc->filename);
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -89,18 +90,32 @@ start_process (void *arg_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  //printf("Succeeded start: %d", success);
+  parent->load_success = success;
+  struct parent_child *pc = thread_current()->parent_child;
+  
+  if (success){
+    pc = (struct parent_child*) malloc(sizeof(struct parent_child));
+    sema_init(&(pc->alive_count_sema), 1);      // de använder lock här istället. ska nog klura på hur man ska göra
+    pc->alive_count = 2;
+    pc->exit_status = NULL;
+    pc->child = thread_current();
+    list_push_back(&parent->children, &pc->elem);   // list is not inited?
+  } else{
+    pc = NULL;
+  }
+  
+  sema_up(&parent->wait_on_child_load_sema);
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success){
-    sema_up(&(pc->exec_sema));
     thread_exit ();
   }
 
 /* Set this threads parent to the passed parent_child struct */
-  thread_current()->parent_child = pc;
-  pc->child = thread_current();
-  sema_up(&(pc->exec_sema));
+ // thread_current()->parent_child = pc;
+ // pc->child = thread_current();
+ // sema_up(&(pc->exec_sema));
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -136,6 +151,26 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  struct list_elem *e;
+  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) 
+  {
+    struct parent_child *pc = list_entry (e, struct parent_child, elem);
+    if (pc != NULL){ 
+      printf("we are pro programmers");
+      sema_down(&pc->alive_count_sema);      // använder lock här istället så det kanske blir fel
+      pc->alive_count -= 1;
+      
+      if(pc->alive_count <= 0){
+        sema_up(&pc->alive_count_sema);
+        list_remove(&pc->elem);
+        free(pc);
+      } else{
+        sema_up(&pc->alive_count_sema);
+      }
+    
+    }
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

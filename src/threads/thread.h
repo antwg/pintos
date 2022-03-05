@@ -19,7 +19,7 @@ enum thread_status
 struct parent_child{
   int exit_status;
   int alive_count;
-  struct semaphore exec_sema;
+  struct semaphore alive_count_sema;
   struct semaphore sys_wait_sema;
   struct thread* parent;
   struct thread* child;
@@ -111,7 +111,7 @@ struct thread
 
     #endif
     struct parent_child* parent_child;
-    struct semaphore process_execute_wait_on_child_sema;
+    struct semaphore wait_on_child_load_sema;
     bool load_success;  
     /* List of parent_children structs for this threads childs. */
     struct list children;
