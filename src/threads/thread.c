@@ -278,7 +278,6 @@ thread_tid (void)
 void
 thread_exit (void) 
 { 
-  printf("Thread exit");
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -482,7 +481,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   list_init(&t->children);
   sema_init(&t->wait_on_child_load_sema, 0);
-
+  
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

@@ -91,17 +91,19 @@ start_process (void *arg_)
   success = load (file_name, &if_.eip, &if_.esp);
 
   parent->load_success = success;
-  struct parent_child *pc = thread_current()->parent_child;
+  //struct parent_child *pc = thread_current()->parent_child;
   //printf("Success: %d\n", success);
+  struct thread *t = thread_current ();
   if (success){
-    pc = (struct parent_child*) malloc(sizeof(struct parent_child));
-    sema_init(&(pc->alive_count_sema), 1);      // de använder lock här istället. ska nog klura på hur man ska göra
-    pc->alive_count = 2;
-    pc->exit_status = 0;
-    pc->child = thread_current();
-    list_push_back(&parent->children, &pc->elem);   // list is not inited?
+    t->parent_child = (struct parent_child*) malloc(sizeof(struct parent_child));
+    sema_init(&(t->parent_child->alive_count_sema), 1);      // de använder lock här istället. ska nog klura på hur man ska göra
+    t->parent_child->alive_count = 2;
+    t->parent_child->exit_status = 0;
+    t->parent_child->child = t;
+    list_push_back(&parent->children, &t->parent_child->elem);   
+    sema_init(&t->parent_child->sys_wait_sema, 0);
   } else{
-    pc = NULL;
+    t->parent_child = NULL;
   }
   //printf("Exited if in start process\n");
   
@@ -142,7 +144,7 @@ int
 process_wait (tid_t child_tid UNUSED)
 {
   //while(true){;}
-  return -1;
+  //return -1;
   struct thread *t = thread_current();
   struct list_elem *elem;
   struct parent_child *pc;
@@ -156,25 +158,49 @@ process_wait (tid_t child_tid UNUSED)
       break;
     }
   }
+  //printf("Found thread: %d\n", found_thread);
   if(!found_thread) return -1;
-
+  //printf("Exit status: %d\n", pc->exit_status);
+  //printf("pc->alive_count %d\n", pc->alive_count);
   if (pc->alive_count == 1) return pc->exit_status;
 
   sema_down(&pc->sys_wait_sema); 
+  //printf("locked the wait sema");
    
   return pc->exit_status; 
+}
+
+int 
+parent_child_helper(struct parent_child *pc) 
+{
+  if (pc == NULL) return 0;
+
+  sema_down(&pc->alive_count_sema);
+  pc->alive_count -= 1;
+  if (pc->alive_count <= 0) 
+    {
+      sema_up(&pc->alive_count_sema);
+      list_remove (&pc->elem);
+      free (pc);
+      return 0;
+    } 
+  else 
+    {
+      sema_up(&pc->alive_count_sema);
+      return 1;
+    }
 }
 
 /* Free the current process's resources. */
 void
 process_exit (void)
 {
-  printf("Process exit");
+  //printf("Process exit");
   //printf("Thread name: %s\n\n", thread_name());
   //printf("exit status is null : %d\n", thread_current()->parent_child == NULL);
   //printf("%s: exit(%d)\n", thread_name(), thread_current()->parent_child->exit_status);
 
-  
+  //sema_up(&thread_current()->parent_child->sys_wait_sema);
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
@@ -182,18 +208,7 @@ process_exit (void)
   for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) 
   {
     struct parent_child *pc = list_entry (e, struct parent_child, elem);
-    if (pc != NULL){ 
-      sema_down(&pc->alive_count_sema);      // använder lock här istället så det kanske blir fel
-      pc->alive_count -= 1;
-      
-      if(pc->alive_count <= 0){
-        sema_up(&pc->alive_count_sema);
-        list_remove(&pc->elem);
-        free(pc);
-      } else{
-        sema_up(&pc->alive_count_sema);
-      }
-    }
+    parent_child_helper(pc);
   }
 
   /* Destroy the current process's page directory and switch back
@@ -212,6 +227,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  if (parent_child_helper(cur->parent_child) == 1) sema_up(&cur->parent_child->sys_wait_sema);
 }
 
 
@@ -308,8 +324,6 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 bool
 load (const char *file_name, void (**eip) (void), void **esp)
 {
-  //printf("inside load code :) ");
-  //printf("Name: %s", file_name);
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
