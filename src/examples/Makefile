@@ -9,6 +9,8 @@ PROGS = cat cmp cp echo halt hex-dump ls mcat mcp mkdir pwd rm shell \
 	child parent create-bad printf lab3test1 lab3test2 lab4test1
 
 # Added test programs
+#child-simple_SRC = child-simple.c
+#wait-simple_SRC = wait-simple.c
 printf_SRC = printf.c
 sumargv_SRC = sumargv.c
 lab2test_SRC = lab2test.c
@@ -30,7 +32,7 @@ create-bad_SRC = create-bad.c
 cat_SRC = cat.c
 cmp_SRC = cmp.c
 cp_SRC = cp.c
-echo_SRC = echo.c
+#echo_SRC = echo.cpintos
 halt_SRC = halt.c
 hex-dump_SRC = hex-dump.c
 insult_SRC = insult.c

@@ -27,6 +27,6 @@ void syscall_exit(struct intr_frame *f, int status);
 
 void syscall_wait(struct intr_frame *f);
 
-void valid_pointer(void *ptr, struct intr_frame *f);
+void valid_pointer(void *ptr, struct intr_frame *f, int arg_num, int arg_size);
 
 #endif /* userprog/syscall.h */

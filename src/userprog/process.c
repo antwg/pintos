@@ -100,6 +100,7 @@ start_process (void *arg_)
     t->parent_child->alive_count = 2;
     t->parent_child->exit_status = 0;
     t->parent_child->child = t;
+    t->parent_child->child_tid = t->tid;
     list_push_back(&parent->children, &t->parent_child->elem);   
     sema_init(&t->parent_child->sys_wait_sema, 0);
   } else{
@@ -115,10 +116,7 @@ start_process (void *arg_)
   if (!success){
     //printf("Not successful, thread exit\n");
     thread_exit ();
-  }
-  
-
-  //printf("Assmebly code next");
+  } 
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -143,31 +141,30 @@ start_process (void *arg_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-  //while(true){;}
-  //return -1;
   struct thread *t = thread_current();
-  struct list_elem *elem;
+  struct list_elem *elem_;
   struct parent_child *pc;
   bool found_thread = false;
 
   // Check if tid is a child of current thread, if not return -1
-  for(elem = list_begin(&t->children); elem != list_end(&t->children); elem = list_next(elem)){
-    pc = list_entry (elem, struct parent_child, elem);
-    if(child_tid == pc->child->tid){
+  for(elem_ = list_begin(&t->children); elem_ != list_end(&t->children); elem_ = list_next(elem_)){
+    pc = list_entry (elem_, struct parent_child, elem);
+    //printf("pc tid: %d", pc->child_tid);
+    if(child_tid == pc->child_tid){
       found_thread = true;
       break;
     }
   }
-  //printf("Found thread: %d\n", found_thread);
   if(!found_thread) return -1;
   //printf("Exit status: %d\n", pc->exit_status);
   //printf("pc->alive_count %d\n", pc->alive_count);
-  if (pc->alive_count == 1) return pc->exit_status;
+  //if (pc->alive_count == 1) return pc->exit_status;
 
   sema_down(&pc->sys_wait_sema); 
   //printf("locked the wait sema");
-   
-  return pc->exit_status; 
+  int exit_status = pc->exit_status; // need to save the value before deleting the parent_child
+  parent_child_helper(pc); // deleting the parent_child
+  return exit_status; 
 }
 
 int 
@@ -195,12 +192,6 @@ parent_child_helper(struct parent_child *pc)
 void
 process_exit (void)
 {
-  //printf("Process exit");
-  //printf("Thread name: %s\n\n", thread_name());
-  //printf("exit status is null : %d\n", thread_current()->parent_child == NULL);
-  //printf("%s: exit(%d)\n", thread_name(), thread_current()->parent_child->exit_status);
-
-  //sema_up(&thread_current()->parent_child->sys_wait_sema);
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
@@ -324,6 +315,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 bool
 load (const char *file_name, void (**eip) (void), void **esp)
 {
+  
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -333,7 +325,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 
 // ----------------------------------------------------------
-  
+   
   int argc = 0;
   char *argv[32];
   char *token;

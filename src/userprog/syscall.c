@@ -14,78 +14,94 @@ static void syscall_handler (struct intr_frame *);
 void syscall_init (void) {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
-void valid_pointer(void *ptr, struct intr_frame *f, int arg_num, int arg_size){
-  if (!is_user_vaddr (ptr) || 
-      !is_user_vaddr (ptr + arg_size * arg_num - 1) || 
-      pagedir_get_page(thread_current()->pagedir, ptr) == NULL ||
-      pagedir_get_page (thread_current ()->pagedir, ptr + arg_size * arg_num - 1) == NULL) { //ptr > PHYS_BASE
-    //printf("Close program, invalid ptr or page\n");
-    f->eax = -1;
-    syscall_exit(f, -1);
-  } 
-  //printf("Ptr ok\n");
-}
 
-void validate_buffer(void *ptr, int size, struct intr_frame *f){
-  //printf("Size: %d", size);
-  for (int i = 0; i < size; i++){ 
-    valid_pointer(ptr + i, f, 1, 1);
-  }
+/*
+  Validates a pointer by making sure is in userspace and has a valid pagedir.
+  If not, terminates the process.
+*/
+void val_ptrs (void *ptr, struct intr_frame *f, int num, int size){
+  int* pagedir = thread_current ()->pagedir;
+  if (!is_user_vaddr (ptr) || !is_user_vaddr (ptr + size * num - 1) // under PHYS SPACE
+    || pagedir_get_page(pagedir, ptr) == NULL                       // Checks so it is in user space
+    || pagedir_get_page(pagedir, ptr + size * num - 1) == NULL)
+    {
+      syscall_exit (f, -1);
+    }
+}
+/*
+  Validates a buffer.
+*/
+void val_buff (void *ptr, struct intr_frame *f, int size) {
+  for (int i = 0; i < size; i++){
+      val_ptrs (ptr + i, f, 1, 1);
+    }
 }
 
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) {
 
-  valid_pointer(f->esp, f, 1, sizeof (uint32_t * ));  //maybe switch so that all arguments is in args
-  //printf("ptr valid in syscall handler");
-  //uint32_t* args = ((uint32_t*) f->esp); 
-  void** arg1 = *(void**) (f->esp + 4);
-  void** arg2 = *(void**) (f->esp + 8);
-  void** arg3 = *(void**) (f->esp + 12);
+  //Validate esp
+  uint32_t* args = ((uint32_t*) f->esp);
+  val_ptrs (&args[0], f, 1, sizeof (uint32_t *));
+
+  void** status = *(void**) (f->esp + 4);
   int syscall_nr = * (int*) f->esp;
-  //printf("entering the interruppt switch case");
+
   switch(syscall_nr){ 
     case SYS_HALT:
       syscall_halt();
       break;
     case SYS_CREATE:
-      validate_buffer(arg1, arg2, f);
+      // Checks so that the where the file is created is valid.
+      //      (void*)name                 int pointer
+      val_ptrs (&args[1], f, 2, sizeof (uint32_t * )); 
+      // checks so all the used space by the file is valid
+      //        name*               size of file
+      val_ptrs ((char *) args[1], f, args[2], sizeof (char));
       syscall_create(f);
       break;
     case SYS_OPEN:
-      validate_buffer(arg1, arg2, f);
+      // Because it is a pointer to a pointer, we need to check it twice
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
+      val_ptrs ((void *) args[1], f, 0, sizeof (uint32_t * ));
       syscall_open(f);
       break;
     case SYS_CLOSE:
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
       syscall_close(f);
       break;
     case SYS_READ:
-      validate_buffer(arg2, arg3, f);
+      val_ptrs (&args[1], f, 3, sizeof (uint32_t * ));
+      val_buff ((void *) args[2], f, args[3]);
       syscall_read(f);
       break;
     case SYS_WRITE:
-      validate_buffer(arg2, arg3, f);
+      val_ptrs (&args[1], f, 3, sizeof (uint32_t * ));
+      val_buff ((void *) args[2], f, args[3]);
       syscall_write(f);
       break;
     case SYS_EXIT:
-      valid_pointer(arg1, f, 1, sizeof (uint32_t *));
-      syscall_exit(f, arg1);
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
+      syscall_exit(f, status);
       break;
     case SYS_EXEC:
-      validate_buffer(arg1, arg2, f);
+      // Because it is a pointer to a pointer, we need to check it twice.
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
+      val_ptrs ((void *) args[1], f, 1, sizeof (uint32_t * ));
       syscall_exec(f);
       break;
     case SYS_WAIT:
-      valid_pointer(arg1, f);
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
       syscall_wait(f);
       break;
   }
 }
 
 void syscall_wait(struct intr_frame *f){
-  f->eax = process_wait(**(tid_t**) (f->esp + 4));
-}
+  void *tid = *(void**) (f->esp + 4);
+  f->eax = process_wait(tid);
+} 
 
 void syscall_exec(struct intr_frame *f){
   void *name = *(void**) (f->esp + 4);
@@ -99,18 +115,17 @@ void syscall_halt(){
 void syscall_create(struct intr_frame *f){
   const void *name = *(void**) (f->esp + 4);
   unsigned size = *(unsigned*) (f->esp + 8);
+  if(name == NULL){
+    f->eax = -1;
+    syscall_exit(f, -1);
+    return;
+  }
   f -> eax = filesys_create(name, size); // Return true if successful, else false
-  //if (f->eax == -1)
-  //  {
-  //    //syscall_exit (f);
-  //  }
-}
+} 
 
 void
-syscall_exit (struct intr_frame *f, int status) 
-{
-  //uint32_t* args = ((uint32_t*) f->esp);
-  //int status =  args[1];
+syscall_exit (struct intr_frame *f, int status) {
+  thread_current()->parent_child->exit_status = status;
   f->eax = status;
   printf("%s: exit(%d)\n", thread_name(), status);
   thread_exit ();
@@ -118,16 +133,26 @@ syscall_exit (struct intr_frame *f, int status)
 
 void syscall_open(struct intr_frame *f){
   const void *name = *(void**) (f->esp + 4);
+  if (name == NULL){
+    f -> eax = -1;
+    syscall_exit(f, -1);
+    return;
+  }
   struct file *opened_file = filesys_open(name);
   if (opened_file == NULL){
     f -> eax = -1;
     return;
   }
+
   f -> eax = thread_get_fd(opened_file);
 }
 
 void syscall_close(struct intr_frame *f){
   const int fd = *(int*) (f->esp + 4);
+  if (fd > 128){
+    f -> eax = -1;
+    return;
+  }
   file_close(thread_get_file(fd));
   thread_remove_fd(fd);
 }
@@ -137,6 +162,18 @@ void syscall_read(struct intr_frame *f){
   char *buffer = *(void**) (f->esp + 8);
   unsigned size = *(unsigned*) (f->esp + 12);
 
+  // Invalid fd
+  if (fd > 128 || fd < 0){
+    f -> eax = -1;
+    syscall_exit(f, -1);
+    return;
+  }
+
+  if (size == 0){
+    f -> eax = 0;
+    return;
+  }
+
   // read from console
   if (fd == 0){ 
     for (unsigned i = 0; i < size; i++){
@@ -144,7 +181,7 @@ void syscall_read(struct intr_frame *f){
     }
     f -> eax = size;
     return;
-  }
+  }  
 
   // Illegal argument
   if (fd == 1){
@@ -164,7 +201,17 @@ void syscall_write (struct intr_frame *f){
   int fd = *(int*) (f-> esp + 4);
   const void *buffer = *(void**) (f->esp + 8);
   unsigned size = *(unsigned*) (f->esp + 12);
-  
+
+  if (fd > 128 || fd < 0){
+    f -> eax = -1;
+    syscall_exit(f, -1);
+    return;
+  }
+  if (size == 0){
+    f -> eax = 0;
+    return;
+  }
+
   // Write to console
   if (fd == 1){ 
     putbuf(buffer, size);
