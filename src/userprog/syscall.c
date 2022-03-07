@@ -37,6 +37,16 @@ void val_buff (void *ptr, struct intr_frame *f, int size) {
     }
 }
 
+void val_string(void *ptr, struct intr_frame *f){
+  char *char_ptr = *(char**) (ptr);
+  while (true){
+    if (*char_ptr == '\0'){
+      break;
+    }
+    val_ptrs(char_ptr, f, 1, 1);
+    char_ptr++;
+  }
+}
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) {
@@ -65,6 +75,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
       // Because it is a pointer to a pointer, we need to check it twice
       val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
       val_ptrs ((void *) args[1], f, 0, sizeof (uint32_t * ));
+      val_string(&args[1], f);
       syscall_open(f);
       break;
     case SYS_CLOSE:
@@ -89,6 +100,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
       // Because it is a pointer to a pointer, we need to check it twice.
       val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
       val_ptrs ((void *) args[1], f, 1, sizeof (uint32_t * ));
+      val_string(&args[1], f);
       syscall_exec(f);
       break;
     case SYS_WAIT:
