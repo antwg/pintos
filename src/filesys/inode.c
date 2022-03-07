@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -34,9 +35,12 @@ struct inode
     struct list_elem elem;              /* Element in inode list. */
     disk_sector_t sector;               /* Sector number of disk location. */
     int open_cnt;                       /* Number of openers. */
+    int read_cnt;
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+    struct semaphore mutex;
+    struct semaphore rw_mutex;
   };
 
 /* Returns the disk sector that contains byte offset POS within
@@ -135,6 +139,11 @@ inode_open (disk_sector_t sector)
   list_push_front (&open_inodes, &inode->elem);
   inode->sector = sector;
   inode->open_cnt = 1;
+  //-------------------------------
+  sema_init(&inode->mutex, 1);
+  sema_init(&inode->rw_mutex, 1);
+  inode->read_cnt = 0;
+  //-------------------------------
   inode->deny_write_cnt = 0;
   inode->removed = false;
   disk_read (filesys_disk, inode->sector, &inode->data);
@@ -203,6 +212,17 @@ inode_remove (struct inode *inode)
 off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
 {
+  // ------ First half of sync ------
+  
+  sema_down(&inode->mutex);
+  inode->read_cnt++;
+  if (inode->read_cnt == 1){
+    sema_down(&inode->rw_mutex);
+  }
+  sema_up(&inode->mutex);
+
+  // -------------------------------
+
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
@@ -248,7 +268,16 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       bytes_read += chunk_size;
     }
   free (bounce);
-
+  
+  //---------Second half of the file sync----
+  sema_down(&inode->mutex);
+  inode->read_cnt--;
+  if (inode->read_cnt == 0){
+    sema_up(&inode->rw_mutex);
+  }
+  sema_up(&inode->mutex);
+  // ------------------------------------------
+  
   return bytes_read;
 }
 
@@ -261,6 +290,9 @@ off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                 off_t offset) 
 {
+  // Block reading until no one is reading
+  sema_down(&inode->rw_mutex);
+
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
@@ -316,6 +348,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
   free (bounce);
+
+  sema_up(&inode->rw_mutex);
 
   return bytes_written;
 }

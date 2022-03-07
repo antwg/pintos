@@ -330,12 +330,13 @@ thread_get_fd(struct file* f){
     }
   }
   return -1;
-}
+} 
 
 /* Free file descriptor */
 void 
 thread_remove_fd(int fd){
   thread_current() -> fd_array[(fd-2)] = 0; // -2 to skip std_in and std_out, fd = 0,1
+  thread_current()->file_array[(fd-2)] = NULL;
 }
   
 /* Get file from file descriptor */

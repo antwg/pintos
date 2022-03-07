@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 #include "threads/init.h"
 #include "devices/input.h"
 #include "userprog/process.h"
@@ -107,7 +108,46 @@ syscall_handler (struct intr_frame *f UNUSED) {
       val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
       syscall_wait(f);
       break;
+    case SYS_SEEK:
+      syscall_seek(f);
+      break;
+    case SYS_TELL:
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
+      syscall_tell(f);
+      break;
+    case SYS_FILESIZE:
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
+      syscall_filesize(f);
+      break;
+    case SYS_REMOVE:
+      val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
+      syscall_remove(f);
+      break;
   }
+}
+
+void syscall_seek(struct intr_frame *f){
+  void *fd = *(void**) (f->esp + 4);
+  unsigned size = *(unsigned*) (f->esp + 8);
+  struct file* file = thread_get_file(fd);
+
+  file_seek(file, size);
+}
+
+void syscall_tell(struct intr_frame *f){
+  void *file = *(void**) (f->esp + 4);
+  f->eax = file_tell(file);
+}
+
+void syscall_filesize(struct intr_frame *f){
+  void *fd = *(void**) (f->esp + 4);
+  struct file* file = thread_get_file(fd);
+  f->eax = file_length(file);
+}
+
+void syscall_remove(struct intr_frame *f){
+  char* name = *(char**) (f->esp + 4);
+  f->eax = filesys_remove(name); 
 }
 
 void syscall_wait(struct intr_frame *f){
@@ -155,7 +195,7 @@ void syscall_open(struct intr_frame *f){
     f -> eax = -1;
     return;
   }
-
+  //printf("open fd: %d",thread_get_fd(opened_file) );
   f -> eax = thread_get_fd(opened_file);
 }
 
@@ -165,8 +205,11 @@ void syscall_close(struct intr_frame *f){
     f -> eax = -1;
     return;
   }
-  file_close(thread_get_file(fd));
-  thread_remove_fd(fd);
+  struct file* file = thread_get_file(fd);
+  if (file != NULL){
+    file_close(file);
+    thread_remove_fd(fd);
+  }
 }
 
 void syscall_read(struct intr_frame *f){
@@ -244,3 +287,4 @@ void syscall_write (struct intr_frame *f){
   }
   f -> eax = written_bits;
 }
+
