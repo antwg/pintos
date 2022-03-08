@@ -35,14 +35,12 @@ struct inode
     struct list_elem elem;              /* Element in inode list. */
     disk_sector_t sector;               /* Sector number of disk location. */
     int open_cnt;                       /* Number of openers. */
-    int read_cnt;
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
-    struct semaphore mutex;
-    struct semaphore rw_mutex;
-    struct semaphore open_cnt_sema;
-    struct semaphore deny_write_cnt_sema;
+    struct semaphore mutex_readers;     /* Used for concurrent readers. */
+    struct semaphore mutex_writers;     /* Used for concurrent writers. */
+    int readcount;                      /* Count of current readers. */
   };
 
 /* Returns the disk sector that contains byte offset POS within
@@ -63,11 +61,16 @@ byte_to_sector (const struct inode *inode, off_t pos)
    returns the same `struct inode'. */
 static struct list open_inodes;
 
+/* A semaphore used to make sure that inodes aren't being
+ * closed/created at the same time in differing procs. */
+static struct semaphore mutex_inode;
+
 /* Initializes the inode module. */
 void
 inode_init (void) 
 {
   list_init (&open_inodes);
+  sema_init(&mutex_inode, 1);
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -86,6 +89,8 @@ inode_create (disk_sector_t sector, off_t length)
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == DISK_SECTOR_SIZE);
+
+  sema_down(&mutex_inode); // lock inode creation
 
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
@@ -108,6 +113,9 @@ inode_create (disk_sector_t sector, off_t length)
         } 
       free (disk_inode);
     }
+
+  sema_up(&mutex_inode); // unlock inode creation
+
   return success;
 }
 
@@ -120,6 +128,8 @@ inode_open (disk_sector_t sector)
   struct list_elem *e;
   struct inode *inode;
 
+  sema_down(&mutex_inode); // lock inode opening
+
   /* Check whether this inode is already open. */
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e)) 
@@ -128,29 +138,34 @@ inode_open (disk_sector_t sector)
       if (inode->sector == sector) 
         {
           inode_reopen (inode);
+
+	  sema_up(&mutex_inode); // unlock inode creation
+
           return inode; 
         }
     }
 
   /* Allocate memory. */
   inode = malloc (sizeof *inode);
-  if (inode == NULL)
+  if (inode == NULL) {
+    sema_up(&mutex_inode); // unlock inode creation
+
     return NULL;
+  }
 
   /* Initialize. */
+  sema_init(&inode->mutex_readers, 1);
+  sema_init(&inode->mutex_writers, 1);
+  inode->readcount = 0;
   list_push_front (&open_inodes, &inode->elem);
   inode->sector = sector;
   inode->open_cnt = 1;
-  //-------------------------------
-  sema_init(&inode->mutex, 1);
-  sema_init(&inode->rw_mutex, 1);
-  //sema_init(&inode->open_cnt_sema, 1);
-  //sema_init(&inode->deny_write_cnt_sema, 1);
-  inode->read_cnt = 0;
-  //-------------------------------
   inode->deny_write_cnt = 0;
   inode->removed = false;
   disk_read (filesys_disk, inode->sector, &inode->data);
+
+  sema_up(&mutex_inode); // unlock inode creation
+
   return inode;
 }
 
@@ -160,10 +175,8 @@ inode_reopen (struct inode *inode)
 {
   if (inode != NULL) 
     {
-      //sema_down(&inode->open_cnt_sema);
       ASSERT(inode->open_cnt != 0);
       inode->open_cnt++;
-      //sema_up(&inode->open_cnt_sema);
     }
   return inode;
 }
@@ -181,11 +194,15 @@ inode_get_inumber (const struct inode *inode)
 void
 inode_close (struct inode *inode) 
 {
+  sema_down(&mutex_inode); // lock inode closing
+
   /* Ignore null pointer. */
-  if (inode == NULL)
+  if (inode == NULL) {
+    sema_up(&mutex_inode); // unlock inode closing
+
     return;
-    
-  //sema_down(&inode->open_cnt_sema);
+  }
+
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
@@ -202,7 +219,8 @@ inode_close (struct inode *inode)
 
       free (inode); 
     }
-  //sema_up(&inode->open_cnt_sema);
+
+  sema_up(&mutex_inode); // unlock inode closing
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
@@ -220,20 +238,16 @@ inode_remove (struct inode *inode)
 off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
 {
-  // ------ First half of sync ------
-  
-  sema_down(&inode->mutex);
-  inode->read_cnt++;
-  if (inode->read_cnt == 1){
-    sema_down(&inode->rw_mutex);
-  }
-  sema_up(&inode->mutex);
-
-  // -------------------------------
-
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
+
+  sema_down(&inode->mutex_readers);    // lock for readers
+  inode->readcount++;                  // increase read count
+  if (inode->readcount == 1){          // if we're the first to read
+    sema_down(&inode->mutex_writers);  // lock for all writers
+  }
+  sema_up(&inode->mutex_readers);      // open reading for others
 
   while (size > 0) 
     {
@@ -276,16 +290,14 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       bytes_read += chunk_size;
     }
   free (bounce);
-  
-  //---------Second half of the file sync----
-  sema_down(&inode->mutex);
-  inode->read_cnt--;
-  if (inode->read_cnt == 0){
-    sema_up(&inode->rw_mutex);
+
+  sema_down(&inode->mutex_readers);  // lock for readers
+  inode->readcount--;                // decrease read count
+  if(inode->readcount == 0){         // if we're the rast reader
+    sema_up(&inode->mutex_writers);  // allow writing
   }
-  sema_up(&inode->mutex);
-  // ------------------------------------------
-  
+  sema_up(&inode->mutex_readers);    // unlock for readers 
+
   return bytes_read;
 }
 
@@ -298,15 +310,17 @@ off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                 off_t offset) 
 {
-  // Block reading until no one is reading
-  sema_down(&inode->rw_mutex);
+  sema_down(&inode->mutex_writers); // lock for all writers
 
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
-  if (inode->deny_write_cnt)
+  if (inode->deny_write_cnt) {
+    sema_up(&inode->mutex_writers); // unlock for all writers
+
     return 0;
+  }
 
   while (size > 0) 
     {
@@ -357,7 +371,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     }
   free (bounce);
 
-  sema_up(&inode->rw_mutex);
+  sema_up(&inode->mutex_writers); // unlock for all writers
 
   return bytes_written;
 }
@@ -367,10 +381,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 void
 inode_deny_write (struct inode *inode) 
 {
-  //sema_down(&inode->deny_write_cnt_sema);
   inode->deny_write_cnt++;
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
-  //sema_up(&inode->deny_write_cnt_sema);
 }
 
 /* Re-enables writes to INODE.
@@ -379,11 +391,9 @@ inode_deny_write (struct inode *inode)
 void
 inode_allow_write (struct inode *inode) 
 {
-  //sema_down(&inode->deny_write_cnt_sema);
   ASSERT (inode->deny_write_cnt > 0);
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
   inode->deny_write_cnt--;
-  //sema_up(&inode->deny_write_cnt_sema);
 }
 
 /* Returns the length, in bytes, of INODE's data. */

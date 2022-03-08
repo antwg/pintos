@@ -21,7 +21,8 @@ void syscall_init (void) {
   If not, terminates the process.
 */
 void val_ptrs (void *ptr, struct intr_frame *f, int num, int size){
-  int* pagedir = thread_current ()->pagedir;
+  //return;
+  uint32_t * pagedir = thread_current ()->pagedir;
   if (!is_user_vaddr (ptr) || !is_user_vaddr (ptr + size * num - 1) // under PHYS SPACE
     || pagedir_get_page(pagedir, ptr) == NULL                       // Checks so it is in user space
     || pagedir_get_page(pagedir, ptr + size * num - 1) == NULL)
@@ -33,12 +34,14 @@ void val_ptrs (void *ptr, struct intr_frame *f, int num, int size){
   Validates a buffer.
 */
 void val_buff (void *ptr, struct intr_frame *f, int size) {
+  //return;
   for (int i = 0; i < size; i++){
       val_ptrs (ptr + i, f, 1, 1);
     }
 }
 
 void val_string(void *ptr, struct intr_frame *f){
+  //return;
   char *char_ptr = *(char**) (ptr);
   while (true){
     if (*char_ptr == '\0'){
@@ -51,7 +54,6 @@ void val_string(void *ptr, struct intr_frame *f){
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) {
-
   //Validate esp
   uint32_t* args = ((uint32_t*) f->esp);
   val_ptrs (&args[0], f, 1, sizeof (uint32_t *));
@@ -64,12 +66,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
       syscall_halt();
       break;
     case SYS_CREATE:
+      if (args[2] < 0) syscall_exit (f, -1);
       // Checks so that the where the file is created is valid.
       //      (void*)name                 int pointer
       val_ptrs (&args[1], f, 2, sizeof (uint32_t * )); 
       // checks so all the used space by the file is valid
       //        name*               size of file
-      val_ptrs ((char *) args[1], f, args[2], sizeof (char));
+      val_ptrs ((char *) args[1], f, 0, sizeof (char));
       syscall_create(f);
       break;
     case SYS_OPEN:
@@ -101,7 +104,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
       // Because it is a pointer to a pointer, we need to check it twice.
       val_ptrs (&args[1], f, 1, sizeof (uint32_t * ));
       val_ptrs ((void *) args[1], f, 1, sizeof (uint32_t * ));
-      val_string(&args[1], f);
+      val_string(&args[1], f);  
       syscall_exec(f);
       break;
     case SYS_WAIT:
@@ -128,14 +131,15 @@ syscall_handler (struct intr_frame *f UNUSED) {
 
 void syscall_seek(struct intr_frame *f){
   void *fd = *(void**) (f->esp + 4);
-  unsigned size = *(unsigned*) (f->esp + 8);
+  unsigned pos = *(unsigned*) (f->esp + 8);
   struct file* file = thread_get_file(fd);
 
-  file_seek(file, size);
+  file_seek(file, pos);
 }
 
 void syscall_tell(struct intr_frame *f){
-  void *file = *(void**) (f->esp + 4);
+  unsigned *fd = *(unsigned**) (f->esp + 4);
+  struct file* file = thread_get_file(fd);
   f->eax = file_tell(file);
 }
 
@@ -166,8 +170,8 @@ void syscall_halt(){
 
 void syscall_create(struct intr_frame *f){
   const void *name = *(void**) (f->esp + 4);
-  unsigned size = *(unsigned*) (f->esp + 8);
-  if(name == NULL){
+  off_t size = *(off_t*) (f->esp + 8);
+  if(name == NULL || size < 0){
     f->eax = -1;
     syscall_exit(f, -1);
     return;
@@ -195,8 +199,8 @@ void syscall_open(struct intr_frame *f){
     f -> eax = -1;
     return;
   }
-  //printf("open fd: %d",thread_get_fd(opened_file) );
-  f -> eax = thread_get_fd(opened_file);
+  int fd = thread_get_fd(opened_file);
+  f -> eax = fd;
 }
 
 void syscall_close(struct intr_frame *f){

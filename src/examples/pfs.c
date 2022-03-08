@@ -7,6 +7,7 @@
 
 int main(void)
 {
+	
 	int i;
 	int pid[N_PROC];
 	char seed[R_BYTES];
@@ -20,6 +21,8 @@ int main(void)
 		printf("Failed to open random.\n");
 		exit(-1);
 	}
+	
+	//printf("successsss oppennn");
 
 	read(ret, &seed[0], R_BYTES);
 	close(ret);
@@ -27,12 +30,19 @@ int main(void)
 	random_init((int)seed[0]);
 	len = strlen(pfswriter);
 
+	//printf("Try to create\n");
+	//printf("big*times: %d\n", BIG*TIMES);
+
 	ret = create("file.1", BIG * TIMES);
+	//ret = create("file.1", 30000);
+	
+	//printf("After create\n");
 
 	if (!ret)  {
 		printf("Failed to create file.1\n");
 		exit(-1);
 	}
+	//printf("starting unknown loop\n");
 
 	for (i = 0; i < N_PROC; i++) {
 		if(random_ulong() % 2 == 0)	 {
@@ -62,7 +72,7 @@ int main(void)
 		}
 	}
 
-
+	
 	printf("Testing concurrent writers\n");
 
 	for (i =0; i < N_PROC; i++) {
@@ -83,7 +93,7 @@ int main(void)
 			fail = 1;
 		}
 	}
-
+	
 	printf("Testing concurrent readers\n");
 
 	for (i =0; i < N_PROC; i++) {
