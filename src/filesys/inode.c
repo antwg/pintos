@@ -107,7 +107,7 @@ inode_create (disk_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start))
+      if (free_map_allocate (sectors, &disk_inode->start)) // Needs to be synced with filesys.c
         {
           disk_write (filesys_disk, sector, disk_inode);
           if (sectors > 0) 
@@ -239,7 +239,7 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed) 
         {
-          free_map_release (inode->sector, 1);
+          free_map_release (inode->sector, 1);          // Sync with filesys
           free_map_release (inode->data.start,
                             bytes_to_sectors (inode->data.length)); 
         }
