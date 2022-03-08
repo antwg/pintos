@@ -41,6 +41,8 @@ struct inode
     struct inode_disk data;             /* Inode content. */
     struct semaphore mutex;
     struct semaphore rw_mutex;
+    struct semaphore open_cnt_sema;
+    struct semaphore deny_write_cnt_sema;
   };
 
 /* Returns the disk sector that contains byte offset POS within
@@ -142,6 +144,8 @@ inode_open (disk_sector_t sector)
   //-------------------------------
   sema_init(&inode->mutex, 1);
   sema_init(&inode->rw_mutex, 1);
+  //sema_init(&inode->open_cnt_sema, 1);
+  //sema_init(&inode->deny_write_cnt_sema, 1);
   inode->read_cnt = 0;
   //-------------------------------
   inode->deny_write_cnt = 0;
@@ -156,8 +160,10 @@ inode_reopen (struct inode *inode)
 {
   if (inode != NULL) 
     {
+      //sema_down(&inode->open_cnt_sema);
       ASSERT(inode->open_cnt != 0);
       inode->open_cnt++;
+      //sema_up(&inode->open_cnt_sema);
     }
   return inode;
 }
@@ -178,7 +184,8 @@ inode_close (struct inode *inode)
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
-
+    
+  //sema_down(&inode->open_cnt_sema);
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
@@ -195,6 +202,7 @@ inode_close (struct inode *inode)
 
       free (inode); 
     }
+  //sema_up(&inode->open_cnt_sema);
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
@@ -359,8 +367,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 void
 inode_deny_write (struct inode *inode) 
 {
+  //sema_down(&inode->deny_write_cnt_sema);
   inode->deny_write_cnt++;
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
+  //sema_up(&inode->deny_write_cnt_sema);
 }
 
 /* Re-enables writes to INODE.
@@ -369,9 +379,11 @@ inode_deny_write (struct inode *inode)
 void
 inode_allow_write (struct inode *inode) 
 {
+  //sema_down(&inode->deny_write_cnt_sema);
   ASSERT (inode->deny_write_cnt > 0);
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
   inode->deny_write_cnt--;
+  //sema_up(&inode->deny_write_cnt_sema);
 }
 
 /* Returns the length, in bytes, of INODE's data. */
